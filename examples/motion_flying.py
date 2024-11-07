@@ -34,10 +34,10 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils import uri_helper
 
-URI = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E701')
+URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
-DEFAULT_HEIGHT = 0.1
-BOX_LIMIT = 0.1
+DEFAULT_HEIGHT = 0.2
+BOX_LIMIT = 0.2
 
 deck_attached_event = Event()
 
