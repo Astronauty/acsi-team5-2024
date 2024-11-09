@@ -36,8 +36,8 @@ from cflib.utils import uri_helper
 
 URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
-DEFAULT_HEIGHT = 0.2
-BOX_LIMIT = 0.2
+DEFAULT_HEIGHT = 0.5
+BOX_LIMIT = 0.5
 
 deck_attached_event = Event()
 
