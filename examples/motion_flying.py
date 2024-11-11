@@ -122,9 +122,9 @@ if __name__ == '__main__':
         scf.cf.log.add_config(logconf)
         logconf.data_received_cb.add_callback(log_pos_callback)
 
-        if not deck_attached_event.wait(timeout=5):
-            print('No flow deck detected!')
-            sys.exit(1)
+        # if not deck_attached_event.wait(timeout=5):
+        #     print('No flow deck detected!')
+        #     sys.exit(1)
 
         logconf.start()
 
