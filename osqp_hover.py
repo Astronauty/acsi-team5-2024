@@ -25,7 +25,7 @@ N_CONTROLS = 4
 
 
 class QuadrotorLQR():
-    """Class that solves a quadratic program to stabilize the drone about a setpoint. 
+    """Class that solves a quadratic program to stabilize the drone about a reference setpoint. 
     """
     def __init__(self, dt, verbose=True):
         params = dict()
