@@ -27,7 +27,7 @@ N_CONTROLS = 4
 class QuadrotorLQR():
     """Class that solves a quadratic program to stabilize the drone about a setpoint. 
     """
-    def __init__(self, dt):
+    def __init__(self, dt, verbose=True):
         params = dict()
         params['g'] = 9.81
         params['m'] = 0.027
@@ -79,20 +79,20 @@ class QuadrotorLQR():
         print("\nS Hat")
         print("============================")
         print(self.S_hat)
-        
-        self.H
-        self.
-        
-        
+
+        print(self.discrete_sys.A)
         pass
     
 
     def compute_S_hat(self, discrete_state_space_sys):
         """
         Computes the matrix mapping control inputs
+        
+        Args:
+            discrete_state_space_sys (StateSpace): The discrete time state space system used to rollout the future dynamics.
 
         Returns:
-            ndarray: S_hat
+            S_hat (ndarray): test
         """
         A = discrete_state_space_sys.A
         B = discrete_state_space_sys.B
@@ -110,10 +110,17 @@ class QuadrotorLQR():
                     # print((np.linalg.matrix_power(A, k-j) @ B).shape)
                     # print(S_hat[k*N_STATES:(k+1)*N_STATES, j*N_CONTROLS:(j+1)*N_CONTROLS].shape)
                 
-        
         return S_hat
     
     def compute_T_hat(self, discrete_state_space_sys):
+        """_summary_
+
+        Args:
+            discrete_state_space_sys (StateSpace): The discrete time state space system used to rollout the future dynamics.
+
+        Returns:
+            T_hat (N_STATES * N_MPC_HORIZON, N_STATES): T_hat, maps the 
+        """
         A = discrete_state_space_sys.A
         B = discrete_state_space_sys.B
         C = discrete_state_space_sys.C
@@ -127,14 +134,17 @@ class QuadrotorLQR():
             
         return T_hat
     
-    def quadratic_cost(self, )
+    def quadratic_cost_matrix(self, S_hat, T_hat, Q_bar, S_bar):
         """
-        The quadratic cost matrix for linear LQR.
-        
-        
-        
+        The quadratic (P) and linear cost (q) matrices for a quadratic program with cost function of the form J = 0.5x'Px + q'x.
+        Returns:
+            P (ndarray):
+            q 
         """
-    
+        # self.compute_
+        return NotImplementedError
+
+        
     
     def state_prediction(self, S_hat, T_hat, z, x0):
         """_summary_
@@ -206,7 +216,9 @@ def main():
     #         log_conf.stop()
     #     else:
             # print("Invalid logging configuration.")
-            
+
+    # Define LQR parameters
+    paa
     quadrotor_lqr = QuadrotorLQR(dt=0.001)
     
             
