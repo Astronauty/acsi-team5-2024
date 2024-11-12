@@ -17,7 +17,7 @@ from cflib.utils import uri_helper
 logging.basicConfig(level=logging.ERROR)
 
 # Define the URI for the Crazyflie
-radio = 'radio://0/20/2M/E7E7E7E702'
+radio = 'radio://0/20/2M/E7E7E7E701'
 uri = uri_helper.uri_from_env(default=radio)
 
 

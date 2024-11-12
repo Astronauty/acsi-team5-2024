@@ -27,7 +27,12 @@ N_CONTROLS = 4
 class QuadrotorLQR():
     """Class that solves a quadratic program to stabilize the drone about a reference setpoint. 
     """
-    def __init__(self, dt, verbose=True):
+    def __init__(self, dt, scf, verbose=True):
+        self.scf = scf
+        self.pwm_to_thrust_a = float(self.scf.cf.param.get_value('quadSysId.pwmToThrustA'))
+        self.pwm_to_thrust_b = float(self.scf.cf.param.get_value('quadSysId.pwmToThrustB'))
+        
+
         params = dict()
         params['g'] = 9.81
         params['m'] = 0.027
@@ -40,8 +45,7 @@ class QuadrotorLQR():
         Izz = 3.2347E-5
 
         # Construct the state space system for the quadrotor (based on https://arxiv.org/pdf/1908.07401)
-        print("Continuous State Space Model")
-        print("============================")
+
         
         A = np.zeros([12,12])
         A[0:3,3:6] = np.eye(3)
@@ -49,19 +53,16 @@ class QuadrotorLQR():
                                [g, 0, 0],
                                [0, 0, 0 ]])
         A[6:9,9:12] = np.eye(3)
-        print("A: \n", A)
 
         B = np.zeros([12,4])
         B[4,0] = -1/m
         B[9:12, 1:4] = np.array([[1/Ixx, 0, 0], 
                                  [0, 1/Iyy, 0],
                                  [0, 0, 1/Izz]])
-        print("B: \n", B)
         
         C = np.zeros([6,12])
         C[0:3,0:3] = np.eye(3)
         C[3:6, 6:9] = np.eye(3)
-        print("C: \n", C)
         
         D = np.zeros([6,4])
 
@@ -72,15 +73,32 @@ class QuadrotorLQR():
         self.S_hat = self.compute_S_hat(self.discrete_sys)
         self.T_hat = self.compute_T_hat(self.discrete_sys)
         
-        print("\nT Hat")
-        print("============================")
-        print(self.T_hat)
-    
-        print("\nS Hat")
-        print("============================")
-        print(self.S_hat)
+        if verbose:
+                print("Continuous State Space Model")
+                print("============================")
+                print("A: \n", A)
+                print("B: \n", B)
+                print("C: \n", C)
 
-        print(self.discrete_sys.A)
+
+                print("\nT Hat")
+                print("============================")
+                print(self.T_hat)
+            
+                print("\nS Hat")
+                print("============================")
+                print(self.S_hat)
+
+        
+        # Enable motor power override via param setting
+        self.scf.cf.param.set_value('motorPowerSet.enable', 1)
+        self.set_motor_thrusts(np.zeros(4))
+
+        print(self.thrust_to_pwm(0.01))
+        print(self.pwm_to_thrust(np.iinfo(np.uint16).max))
+
+        self.set_motor_thrusts(np.array([0.05, 0.05, 0.05, 0.05]))
+
         pass
     
 
@@ -154,14 +172,53 @@ class QuadrotorLQR():
         """
         X = S_hat @ z + T_hat @ x0
         return X
+
+    def pwm_to_thrust(self, pwm):
+        """
+        Receives a PWM value from 0-UINT16_MAX and converts it to the thrust force in newtons based on the parameters defined in the quadSysId parameter group of crazyflie.
+        Args:
+            pwm (uint16): PWM value commanded to crazyflie motor.
+        Returns:
+            thrust: Force in newtons produced by the rotor at the provided PWM value.
+        """
+        pwm = pwm/np.uint16(65535) # normalize pwm to val from 0-1
+        thrust = self.pwm_to_thrust_a*pwm*pwm + self.pwm_to_thrust_b*pwm
+        return thrust
+
+    def thrust_to_pwm(self, thrust):
+        """
+        Receives a thrust value in newtons and converts it to the equivalent PWM command.
+        Args:
+            thrust: Force in newtons produced by the rotor at the provided PWM value.
+        Returns:
+            pwm (uint16): PWM value commanded to crazyflie motor.
+        """
+        
+        pwm = (-self.pwm_to_thrust_b + np.sqrt(self.pwm_to_thrust_b**2 + 4*self.pwm_to_thrust_a*thrust))/(2*self.pwm_to_thrust_a)
+        pwm = pwm*np.uint16(65535) # convert normalized pwm to value that ranges from 0-UINT16_MAX
+        return pwm
+
+    
+    def set_motor_thrusts(self, u):
+        """
+        Args:
+            u (ndarray): Control input to the quadrotor in the form of a 4x1 vector where each element is the thrust in newtons.
+        Returns:
+            None
+        """
+        assert len(u) == N_CONTROLS, "Control input must be a 4x1 vector."
+
+        for i in range(4):
+            self.scf.cf.param.set_value(f'motorPowerSet.m{i+1}', self.thrust_to_pwm(u[i]))
+        
+        return None
+
     
 
 
 def quadrotor_lqr_cost(x, u, Q, R):
     return x @ Q @ x + u @ R @ u
 
-def set_motor_power(u):
-    return NotImplemented
 
 
 
@@ -173,53 +230,54 @@ def state_est_log_callback(timestamp, data, logconf):
     yaw = data['stateEstimate.yaw']
     pitch = data['stateEstimate.pitch']
     roll = data['stateEstimate.roll']
-    print(f"[{logconf.name}][{timestamp}] Pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, yaw={yaw:.2f}, pitch={pitch:.2f}, roll={roll:.2f}")
+    # print(f"[{logconf.name}][{timestamp}] Pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, yaw={yaw:.2f}, pitch={pitch:.2f}, roll={roll:.2f}")
     
 
 def main():
-    # cflib.crtp.init_drivers()
+    cflib.crtp.init_drivers()
 
-    # # Define a log configuration to get position and orientation data
-    # log_conf = LogConfig(name='cf', period_in_ms=100)
-    # log_conf.add_variable('stateEstimate.x', 'float')
-    # log_conf.add_variable('stateEstimate.y', 'float')
-    # log_conf.add_variable('stateEstimate.z', 'float')
+    # Define a log configuration to get position and orientation data
+    log_conf = LogConfig(name='cf', period_in_ms=100)
+    log_conf.add_variable('stateEstimate.x', 'float')
+    log_conf.add_variable('stateEstimate.y', 'float')
+    log_conf.add_variable('stateEstimate.z', 'float')
 
-    # log_conf.add_variable('stateEstimate.yaw', 'float')
-    # log_conf.add_variable('stateEstimate.pitch', 'float')
-    # log_conf.add_variable('stateEstimate.roll', 'float')
+    log_conf.add_variable('stateEstimate.yaw', 'float')
+    log_conf.add_variable('stateEstimate.pitch', 'float')
+    log_conf.add_variable('stateEstimate.roll', 'float')
 
-    # with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
-    #     print("Connected to Crazyflie.")
+    # try: 
+    with SyncCrazyflie(URI['cf'], cf=Crazyflie(rw_cache='./cache')) as scf:
+        print("Connected to Crazyflie.")
         
-    #     # Add the log configuration to the Crazyflie
-    #     scf.cf.log.add_config(log_conf)
-
-        # Enable motor power override via param setting
-        # scf.cf.param.set_value('motorPowerSet.enable', 1)
-        # set_motor_power(np.zeros(4))
+        # Add the log configuration to the Crazyflie
+        scf.cf.log.add_config(log_conf)
 
 
-    #     # Start logging if the configuration is added successfully
-    #     if log_conf.valid:
-    #         log_conf.data_received_cb.add_callback(state_est_log_callback)
-    #         log_conf.start()
-    #         print("Logging position and orientation data...")
+        # Define LQR parameters
+        quadrotor_lqr = QuadrotorLQR(dt=0.001, scf=scf, verbose=False)
 
-    #         # Keep the connection open and outputting data
-    #         try:
-    #             while True:
-    #                 time.sleep(1)
-    #         except KeyboardInterrupt:
-    #             print("Logging stopped.")
+        # Start logging if the configuration is added successfully
+        if log_conf.valid:
+            log_conf.data_received_cb.add_callback(state_est_log_callback)
+            log_conf.start()
+            print("Logging position and orientation data...")
 
-    #         log_conf.stop()
-    #     else:
-            # print("Invalid logging configuration.")
+            # Keep the connection open and outputting data
+            try:
+                while True:
+                    time.sleep(1)
+            except KeyboardInterrupt:
+                scf.cf.param.set_value('motorPowerSet.enable', 0)
+                print("Logging stopped.")
 
-    # Define LQR parameters
-    paa
-    quadrotor_lqr = QuadrotorLQR(dt=0.001)
+            log_conf.stop()
+        else:
+            print("Invalid logging configuration.")
+    # except Exception as e:
+        # print(f"Could not connect to Crazyflie: {e}")
+
+ 
     
             
 
