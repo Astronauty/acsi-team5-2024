@@ -23,6 +23,7 @@ uri = uri_helper.uri_from_env(default=radio)
 
 # Callback to log position and orientation
 def position_log_callback(timestamp, data, logconf):
+    print(data)
     x = data['stateEstimate.x']
     y = data['stateEstimate.y']
     z = data['stateEstimate.z']

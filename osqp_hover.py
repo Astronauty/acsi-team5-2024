@@ -4,6 +4,7 @@ import time
 import osqp
 import numpy as np
 import scipy as sp
+
 from threading import Event
 
 import cflib.crtp
@@ -13,25 +14,30 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils import uri_helper
 from scipy import signal
+from scipy import sparse
 # from scipy import linalg
 
 URI = dict()
 URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
-N_MPC_HORIZON = 5 # number of steps to consider in MPC horizon
+N_MPC_HORIZON = 3 # number of steps to consider in MPC horizon
 N_STATES = 12
 N_CONTROLS = 4
 
 
 class QuadrotorLQR():
-    """Class that solves a quadratic program to stabilize the drone about a reference setpoint. 
+    """Class that solves the following quadratic program to stabilize the drone about a reference setpoint:
+    
+    min 0.5x'Px + q'x
+    s.t. l <= Ax <= u
     """
     def __init__(self, dt, scf, verbose=True):
         self.scf = scf
         self.pwm_to_thrust_a = float(self.scf.cf.param.get_value('quadSysId.pwmToThrustA'))
         self.pwm_to_thrust_b = float(self.scf.cf.param.get_value('quadSysId.pwmToThrustB'))
         
+        self.umax = 0.15 # max thrust per motor in newtons
 
         params = dict()
         params['g'] = 9.81
@@ -45,8 +51,6 @@ class QuadrotorLQR():
         Izz = 3.2347E-5
 
         # Construct the state space system for the quadrotor (based on https://arxiv.org/pdf/1908.07401)
-
-        
         A = np.zeros([12,12])
         A[0:3,3:6] = np.eye(3)
         A[3:6,6:9] = np.array([[0, -g, 0], 
@@ -69,26 +73,79 @@ class QuadrotorLQR():
         self.sys = signal.StateSpace(A, B, C, D)
         self.discrete_sys = self.sys.to_discrete(dt)
         
+        if verbose:
+            print("Continuous State Space Model")
+            print("============================")
+            print("A: \n", A)
+            print("B: \n", B)
+            print("C: \n", C)
+
+
+            print("\nT Hat")
+            print("============================")
+            print(self.T_hat)
+        
+            print("\nS Hat")
+            print("============================")
+            print(self.S_hat)
+            
+        # Define LQR costs
+        Q = np.eye(N_STATES)
+        R = np.eye(N_CONTROLS)
+        
+        self.Qbar = np.kron(np.eye(N_MPC_HORIZON), Q)
+        self.Rbar = 100*np.kron(np.eye(N_MPC_HORIZON-1), R)
+        
         # Precomputes
         self.S_hat = self.compute_S_hat(self.discrete_sys)
         self.T_hat = self.compute_T_hat(self.discrete_sys)
         
-        if verbose:
-                print("Continuous State Space Model")
-                print("============================")
-                print("A: \n", A)
-                print("B: \n", B)
-                print("C: \n", C)
+        print("S_hat Shape:", self.S_hat.shape)
+        print("T_hat Shape:", self.T_hat.shape)
+        print("Qbar Shape:", self.Qbar.shape)
+        print("Rbar Shape:", self.Rbar.shape)
+        
+        
+        self.P = sparse.csc_matrix(2*self.Rbar + 2*self.S_hat.T @ self.Qbar @ self.S_hat) # Quadratic cost term
+        
+        # Set up the OSQP solver
+        self.prob = osqp.OSQP()
+        
+        self.x0 = np.zeros((N_STATES, 1))
+        self.q = (2*self.x0.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
+        
+        self.A = sparse.vstack([sparse.eye(N_CONTROLS * (N_MPC_HORIZON-1)), -sparse.eye(N_CONTROLS * (N_MPC_HORIZON-1))], format='csc')
+        self.l = -np.inf * np.ones((2*N_CONTROLS*(N_MPC_HORIZON-1), 1))
+        
+        self.u = np.inf * np.ones((2*N_CONTROLS*(N_MPC_HORIZON-1), 1))
+        
+        # self.u = np.vstack([np.vstack([np.ones((N_CONTROLS,1))] * (N_MPC_HORIZON-1)), -np.vstack([np.ones((N_CONTROLS,1))]* (N_MPC_HORIZON-1))])        
 
-
-                print("\nT Hat")
-                print("============================")
-                print(self.T_hat)
-            
-                print("\nS Hat")
-                print("============================")
-                print(self.S_hat)
-
+        
+        print()
+        print("P_shape: ", self.P.shape)
+        print("q_shape: ", self.q.shape)
+        print("A_shape: ", self.A.shape)
+        print("l_shape: ", self.l.shape)
+        print("u_shape: ", self.u.shape)
+        
+        print("P_type: ", type(self.P))
+        print("q_type: ", type(self.q))
+        print("A_type: ", type(self.A))
+        print("l_type: ", type(self.l))
+        print("u_type: ", type(self.u))
+        
+        # print("P: ", self.P)
+        # print("q: ", self.q)
+        # print("A: ", self.A)
+        # print("l: ", self.l)
+        # print("u: ", self.u)
+        
+        
+    
+        # prob.setup(self.P, self.q, self.A, self.l, self.u, warm_starting=True, verbose=False)
+        self.prob.setup(self.P, self.q, self.A, self.l, self.u, verbose=True)
+        
         
         # Enable motor power override via param setting
         self.scf.cf.param.set_value('motorPowerSet.enable', 1)
@@ -97,11 +154,62 @@ class QuadrotorLQR():
         print(self.thrust_to_pwm(0.01))
         print(self.pwm_to_thrust(np.iinfo(np.uint16).max))
 
-        self.set_motor_thrusts(np.array([0.05, 0.05, 0.05, 0.05]))
+        # self.set_motor_thrusts(np.array([0.01, 0.01, 0.01, 0.01]))
 
         pass
     
-
+    def translation_state_est_callback(self, timestamp, data, logconf):
+        
+        x = data['stateEstimate.x']
+        y = data['stateEstimate.y']
+        z = data['stateEstimate.z']
+        vx = data['stateEstimate.vx']
+        vy = data['stateEstimate.vy']
+        vz = data['stateEstimate.vz']
+        # roll = data['stateEstimate.roll']
+        # pitch = data['stateEstimate.pitch']
+        # yaw = data['stateEstimate.yaw']
+        
+        # print("x:", self.x0)
+        # self.x0 = np.array([x, y, z, vx, vy, vz, yaw, pitch, roll, 0, 0, 0])
+        self.x0[0:6] = np.array([x, y, z, vx, vy, vz]).reshape(6,1)
+        
+        return None
+    
+    def orientation_state_est_callback(self, timestamp, data, logconf):
+        # roll = data['stateEstimate.roll']
+        # pitch = data['stateEstimate.pitch']
+        # yaw = data['stateEstimate.yaw']
+        
+        roll = data['stabilizer.roll']
+        pitch = data['stabilizer.pitch']
+        yaw = data['stabilizer.yaw']
+        
+        vroll = data['stateEstimateZ.rateRoll']
+        vpitch = data['stateEstimateZ.ratePitch']
+        vyaw = data['stateEstimateZ.rateYaw']
+        
+        # print("x:", self.x0)
+        # self.x0 = np.array([x, y, z, vx, vy, vz, yaw, pitch, roll, 0, 0, 0])
+        self.x0[6:12] = np.array([roll, pitch, yaw, vroll, vpitch, vyaw]).reshape(6,1)
+        
+        return None
+    
+    
+    def solve_linear_mpc(self, x_ref):
+        self.q = (2*self.x0.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
+        self.prob.update(q=self.q)
+        res = self.prob.solve()
+        
+        if res.info.status != 'solved':
+            raise ValueError("OSQP did not solve the problem.")
+            
+        u = res.x
+        self.set_motor_thrusts(0.1*u)
+        print("u: ", u)
+        
+        return res
+        
     def compute_S_hat(self, discrete_state_space_sys):
         """
         Computes the matrix mapping control inputs
@@ -206,10 +314,12 @@ class QuadrotorLQR():
         Returns:
             None
         """
-        assert len(u) == N_CONTROLS, "Control input must be a 4x1 vector."
+        # assert len(u) == N_CONTROLS, "Control input must be a 4x1 vector."
 
         for i in range(4):
-            self.scf.cf.param.set_value(f'motorPowerSet.m{i+1}', self.thrust_to_pwm(u[i]))
+            pwm_value = self.thrust_to_pwm(u[i])
+            pwm_value = max(0, min(65535, pwm_value))
+            self.scf.cf.param.set_value(f'motorPowerSet.m{i+1}', pwm_value)
         
         return None
 
@@ -222,56 +332,66 @@ def quadrotor_lqr_cost(x, u, Q, R):
 
 
 
-# Callback to log position and orientation
-def state_est_log_callback(timestamp, data, logconf):
-    x = data['stateEstimate.x']
-    y = data['stateEstimate.y']
-    z = data['stateEstimate.z']
-    yaw = data['stateEstimate.yaw']
-    pitch = data['stateEstimate.pitch']
-    roll = data['stateEstimate.roll']
-    # print(f"[{logconf.name}][{timestamp}] Pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, yaw={yaw:.2f}, pitch={pitch:.2f}, roll={roll:.2f}")
-    
-
 def main():
     cflib.crtp.init_drivers()
 
     # Define a log configuration to get position and orientation data
-    log_conf = LogConfig(name='cf', period_in_ms=100)
-    log_conf.add_variable('stateEstimate.x', 'float')
-    log_conf.add_variable('stateEstimate.y', 'float')
-    log_conf.add_variable('stateEstimate.z', 'float')
+    t_log_conf = LogConfig(name='t_cf', period_in_ms=100)
+    t_log_conf.add_variable('stateEstimate.x', 'float')
+    t_log_conf.add_variable('stateEstimate.y', 'float')
+    t_log_conf.add_variable('stateEstimate.z', 'float')
 
-    log_conf.add_variable('stateEstimate.yaw', 'float')
-    log_conf.add_variable('stateEstimate.pitch', 'float')
-    log_conf.add_variable('stateEstimate.roll', 'float')
+    t_log_conf.add_variable('stateEstimate.vx', 'float')
+    t_log_conf.add_variable('stateEstimate.vy', 'float')
+    t_log_conf.add_variable('stateEstimate.vz', 'float')
+
+    o_log_conf = LogConfig(name='o_cf', period_in_ms=100)
+    # o_log_conf.add_variable('stateEstimate.roll', 'float')
+    # o_log_conf.add_variable('stateEstimate.pitch', 'float')
+    # o_log_conf.add_variable('stateEstimate.yaw', 'float')
+    o_log_conf.add_variable('stabilizer.roll', 'float')
+    o_log_conf.add_variable('stabilizer.pitch', 'float')
+    o_log_conf.add_variable('stabilizer.yaw', 'float')
+    o_log_conf.add_variable('stateEstimateZ.rateRoll', 'int16_t')
+    o_log_conf.add_variable('stateEstimateZ.ratePitch', 'int16_t')
+    o_log_conf.add_variable('stateEstimateZ.rateYaw', 'int16_t')
+    
 
     # try: 
     with SyncCrazyflie(URI['cf'], cf=Crazyflie(rw_cache='./cache')) as scf:
         print("Connected to Crazyflie.")
         
         # Add the log configuration to the Crazyflie
-        scf.cf.log.add_config(log_conf)
+        scf.cf.log.add_config(t_log_conf)
+        scf.cf.log.add_config(o_log_conf)
+        
 
 
         # Define LQR parameters
-        quadrotor_lqr = QuadrotorLQR(dt=0.001, scf=scf, verbose=False)
+        quadrotor_lqr = QuadrotorLQR(dt=0.05, scf=scf, verbose=False)
 
         # Start logging if the configuration is added successfully
-        if log_conf.valid:
-            log_conf.data_received_cb.add_callback(state_est_log_callback)
-            log_conf.start()
+        if t_log_conf.valid and o_log_conf.valid:
+            t_log_conf.data_received_cb.add_callback(quadrotor_lqr.translation_state_est_callback)
+            o_log_conf.data_received_cb.add_callback(quadrotor_lqr.orientation_state_est_callback)
+            
+            t_log_conf.start()
+            o_log_conf.start()
             print("Logging position and orientation data...")
 
             # Keep the connection open and outputting data
             try:
                 while True:
-                    time.sleep(1)
+                    time.sleep(0.5)
+                    quadrotor_lqr.solve_linear_mpc(np.zeros((N_STATES,1)))
+                    print()
+                    print("x0:", quadrotor_lqr.x0)
             except KeyboardInterrupt:
                 scf.cf.param.set_value('motorPowerSet.enable', 0)
                 print("Logging stopped.")
 
-            log_conf.stop()
+            t_log_conf.stop()
+            o_log_conf.stop()
         else:
             print("Invalid logging configuration.")
     # except Exception as e:
