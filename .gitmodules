@@ -1,0 +1,6 @@
+[submodule "_thirdparty/crazyflie-firmware"]
+	path = _thirdparty/crazyflie-firmware
+	url = https://github.com/bitcraze/crazyflie-firmware.git
+[submodule "_thirdparty/TinyMPC"]
+	path = _thirdparty/TinyMPC
+	url = https://github.com/TinyMPC/TinyMPC.git

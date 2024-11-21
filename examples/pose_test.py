@@ -38,7 +38,7 @@ def main():
     cflib.crtp.init_drivers()
 
     # Define a log configuration to get position and orientation data
-    log_conf = LogConfig(name='Tumbller', period_in_ms=100)
+    log_conf = LogConfig(name='Tumbller', period_in_ms=10)
     log_conf.add_variable('stateEstimate.x', 'float')
     log_conf.add_variable('stateEstimate.y', 'float')
     log_conf.add_variable('stateEstimate.z', 'float')
