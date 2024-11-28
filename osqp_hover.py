@@ -18,8 +18,8 @@ from scipy import sparse
 # from scipy import linalg
 
 URI = dict()
-URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
-URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
+URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
+#URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
 N_MPC_HORIZON = 3 # number of steps to consider in MPC horizon
 N_STATES = 12
@@ -382,7 +382,7 @@ def main():
             # Keep the connection open and outputting data
             try:
                 while True:
-                    time.sleep(0.5)
+                    time.sleep(0.1)
                     quadrotor_lqr.solve_linear_mpc(np.zeros((N_STATES,1)))
                     print()
                     print("x0:", quadrotor_lqr.x0)
