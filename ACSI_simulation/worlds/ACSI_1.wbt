@@ -1,0 +1,110 @@
+#VRML_SIM R2023b utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/Floor.proto"
+
+WorldInfo {
+}
+Viewpoint {
+  orientation 0.05196094568551917 0.03339992219557942 -0.998090429430518 5.015307225394687
+  position -0.12558206458786472 -0.5009082430429592 0.08621251565289537
+}
+TexturedBackground {
+}
+Floor {
+}
+DEF Tumbller Robot {
+  translation 0 0 0.099
+  rotation 0 0 -1 0
+  children [
+    Gyro {
+      rotation 0 -1 0 -5.307179586466759e-06
+    }
+    GPS {
+    }
+    InertialUnit {
+    }
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position -5261.879928011123
+        axis 0 1 0
+        anchor 0 0.11 -0.06
+      }
+      device [
+        RotationalMotor {
+          name "motor_left"
+          maxVelocity 100
+        }
+      ]
+      endPoint DEF wheel_left Solid {
+        translation -1.2755680658039255e-07 0.10999926344825806 -0.059980993945440375
+        rotation -0.10193293463397783 0.7034254701125054 -0.7034218398897676 3.34468676676857
+        children [
+          DEF wheel_left Shape {
+            appearance PBRAppearance {
+              baseColor 0 0 0
+            }
+            geometry Cylinder {
+              height 0.03
+              radius 0.04
+            }
+          }
+        ]
+        name "solid(2)"
+        boundingObject USE wheel_left
+        physics Physics {
+        }
+      }
+    }
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position -4531.851204421918
+        axis 0 7 0
+        anchor 0 -0.11 -0.06
+      }
+      device [
+        RotationalMotor {
+          name "motor_right"
+          maxVelocity 100
+        }
+      ]
+      endPoint DEF wheel_right Solid {
+        translation -2.3197302799144728e-05 -0.11096543800964156 -0.059698637014924075
+        rotation 0.5374109831201673 -0.5963011142469172 0.5963341482505428 2.1553027626374157
+        children [
+          DEF wheel_right Shape {
+            appearance PBRAppearance {
+              baseColor 0 0 0
+            }
+            geometry Cylinder {
+              height 0.03
+              radius 0.04
+            }
+          }
+        ]
+        name "solid(1)"
+        boundingObject USE wheel_right
+        physics Physics {
+        }
+      }
+    }
+    DEF T_box Solid {
+      translation 0 0 -0.00025269982390258017
+      children [
+        DEF T_box Shape {
+          appearance PBRAppearance {
+            baseColor 0.4 0.5 1
+          }
+          geometry Box {
+            size 0.08 0.18 0.13
+          }
+        }
+      ]
+      boundingObject USE T_box
+    }
+  ]
+  boundingObject USE T_box
+  physics Physics {
+  }
+  controller "Tumbller_controller"
+}
