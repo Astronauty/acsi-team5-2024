@@ -1,3 +1,21 @@
+# -*- coding: utf-8 -*-
+#
+#  ...........       ____  _ __
+#  |  ,-^-,  |      / __ )(_) /_______________ _____  ___
+#  | (  O  ) |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
+#  | / ,..´  |    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
+#     +.......   /_____/_/\__/\___/_/   \__,_/ /___/\___/
+#
+#  MIT Licence
+#
+#  Copyright (C) 2023 Bitcraze AB
+#
+
+"""
+file: Crazyfile_controller.py
+
+"""
+
 from controller import Robot
 from controller import Keyboard
 
