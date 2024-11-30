@@ -2,20 +2,21 @@
 
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
 EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/Floor.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/robots/bitcraze/crazyflie/protos/Crazyflie.proto"
 
 WorldInfo {
 }
 Viewpoint {
-  orientation 0.05196094568551917 0.03339992219557942 -0.998090429430518 5.015307225394687
-  position -0.12558206458786472 -0.5009082430429592 0.08621251565289537
+  orientation 0.26685861165962854 -0.2125977652980704 -0.9399939742218363 4.742882893448719
+  position 0.44467624088450747 -0.25771012427573403 0.19924887615996012
 }
 TexturedBackground {
 }
 Floor {
 }
 DEF Tumbller Robot {
-  translation 0 0 0.099
-  rotation 0 0 -1 0
+  translation -0.005091391409441662 0.00012162420547033636 0.09822327575819308
+  rotation 1.1940615591499167e-05 0.0006070608863556216 0.9999998156672341 3.14143179182298
   children [
     Gyro {
       rotation 0 -1 0 -5.307179586466759e-06
@@ -26,7 +27,7 @@ DEF Tumbller Robot {
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position -5261.879928011123
+        position -5261.752078641227
         axis 0 1 0
         anchor 0 0.11 -0.06
       }
@@ -37,8 +38,8 @@ DEF Tumbller Robot {
         }
       ]
       endPoint DEF wheel_left Solid {
-        translation -1.2755680658039255e-07 0.10999926344825806 -0.059980993945440375
-        rotation -0.10193293463397783 0.7034254701125054 -0.7034218398897676 3.34468676676857
+        translation 2.2967820968656804e-06 0.10999926344825806 -0.05998113280167429
+        rotation -0.14748212037131075 0.6993773301033899 -0.6993714137053616 3.4343767322228236
         children [
           DEF wheel_left Shape {
             appearance PBRAppearance {
@@ -54,11 +55,13 @@ DEF Tumbller Robot {
         boundingObject USE wheel_left
         physics Physics {
         }
+        linearVelocity 3.242693289252445e-05 -3.290735577865624e-09 2.146615210450425e-12
+        angularVelocity 8.227646332291225e-08 0.0008109622507072445 3.468147702072925e-08
       }
     }
     HingeJoint {
       jointParameters HingeJointParameters {
-        position -4531.851204421918
+        position -4531.72335509968
         axis 0 7 0
         anchor 0 -0.11 -0.06
       }
@@ -69,8 +72,8 @@ DEF Tumbller Robot {
         }
       ]
       endPoint DEF wheel_right Solid {
-        translation -2.3197302799144728e-05 -0.11096543800964156 -0.059698637014924075
-        rotation 0.5374109831201673 -0.5963011142469172 0.5963341482505428 2.1553027626374157
+        translation 1.5416200962487912e-05 -0.11096543800964156 -0.05969813893199203
+        rotation 0.5865988121992846 -0.572652384398082 0.5726875938673545 2.080545176013661
         children [
           DEF wheel_right Shape {
             appearance PBRAppearance {
@@ -86,6 +89,8 @@ DEF Tumbller Robot {
         boundingObject USE wheel_right
         physics Physics {
         }
+        linearVelocity 3.243122482225563e-05 -3.2911724050595977e-09 -6.432494832198081e-12
+        angularVelocity 8.227704781336512e-08 0.0008109649817240783 3.470089710083587e-08
       }
     }
     DEF T_box Solid {
@@ -101,10 +106,21 @@ DEF Tumbller Robot {
         }
       ]
       boundingObject USE T_box
+      physics Physics {
+      }
     }
   ]
   boundingObject USE T_box
   physics Physics {
   }
   controller "Tumbller_controller"
+  linearVelocity 3.2277494494863144e-05 -3.879110349438128e-10 -7.162746657904325e-09
+  angularVelocity -4.8237008096466934e-08 -3.674028642579795e-07 1.0197316113730718e-06
+}
+Crazyflie {
+  hidden linearVelocity_0 1.3123990752768802e-17 -7.013741767912582e-18 3.4254665832752036e-15
+  hidden angularVelocity_0 -2.4059449701947594e-16 -3.156475464361452e-16 1.2304215344231753e-16
+  translation 0.5 1.3050942833754097e-05 0.014980386399999556
+  rotation -0.19376267249247128 -0.9120510890752279 -0.3614122821173434 1.7589356389920846e-16
+  controller "Crazyfile_controller"
 }
