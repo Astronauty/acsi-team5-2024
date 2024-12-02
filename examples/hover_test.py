@@ -44,7 +44,7 @@ position_estimate = [0,0,0]
 position_log = []
 
 
-def run_sequence(scf, hover_time=10, ref_point=(0, 0, 1.5, 0)):
+def run_sequence(scf, hover_time=10, ref_point=(0, 0, 0.5, 0)):
     cf = scf.cf
 
     x = ref_point[0]

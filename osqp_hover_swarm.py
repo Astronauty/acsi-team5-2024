@@ -459,7 +459,7 @@ def run_c_crazyflie(scf):
                 x_ref = np.zeros((N_STATES, 1))
                 x_ref[0, 0] = 0.0  # Desired X position
                 x_ref[1, 0] = 0.0  # Desired Y position
-                x_ref[2, 0] = 0.5  # Desired Z position (e.g., hover at 0.5 meters)
+                x_ref[2, 0] = 1.0  # Desired Z position (e.g., hover at 1.0 meters)
 
             res = quadrotor_lqr.solve_linear_mpc(x_ref)
             u = res.x[:N_CONTROLS]
