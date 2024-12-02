@@ -349,6 +349,8 @@ class QuadrotorLQR():
         """
         X = S_hat @ z + T_hat @ x0
         return X
+    
+
 
     def pwm_to_thrust(self, pwm):
         """
