@@ -37,8 +37,9 @@ logging.basicConfig(level=logging.ERROR)
 
 
 class ReadMem:
-    def __init__(self, uri):
+    def __init__(self, uri, output_file):
         self._event = Event()
+        self.output_file = output_file
 
         with SyncCrazyflie(uri, cf=Crazyflie(rw_cache='./cache')) as scf:
             helper = LighthouseMemHelper(scf.cf)
@@ -52,17 +53,24 @@ class ReadMem:
             self._event.wait()
 
     def _geo_read_ready(self, geo_data):
-        for id, data in geo_data.items():
-            print('---- Geometry for base station', id + 1)
-            data.dump()
-            print()
+        with open(self.output_file, 'a') as file:
+            for id, data in geo_data.items():
+                file.write(f'---- Geometry for base station {id + 1}\n')
+                file.write(f'origin: {data.origin}\n')
+                file.write(f'rotation matrix: {data.rotation_matrix}\n')
+                file.write(f'valid: {data.valid}\n\n')
         self._event.set()
 
     def _calib_read_ready(self, calib_data):
-        for id, data in calib_data.items():
-            print('---- Calibration data for base station', id + 1)
-            data.dump()
-            print()
+        with open(self.output_file, 'a') as file:
+            for id, data in calib_data.items():
+                file.write(f'---- Calibration data for base station {id + 1}\n')
+                for sweep in data.sweeps:
+                    file.write(f'phase: {sweep.phase}, tilt: {sweep.tilt}, curve: {sweep.curve}, '
+                               f'gibmag: {sweep.gibmag}, gibphase: {sweep.gibphase}, '
+                               f'ogeemag: {sweep.ogeemag}, ogeephase: {sweep.ogeephase}\n')
+                file.write(f'uid: {data.uid}\n\n')
+                file.write(f'valid: {data.valid}\n\n')
         self._event.set()
 
 
@@ -74,5 +82,11 @@ if __name__ == '__main__':
     # Initialize the low-level drivers
     cflib.crtp.init_drivers()
 
-    ReadMem(uri)
-    print("Copy and paste the output into a file and use the 'write_mem' example to write it back to the Crazyflie")
+    # Specify the output file
+    output_file = 'lighthouse_memory.txt'
+
+    # Read memory and save to file
+    print("Reading ligthouse memory")
+    ReadMem(uri, output_file)
+    print("Saving done. Run the 'write_mem.py' example to write the data to a new crazyflie")
+
