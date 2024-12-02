@@ -1,31 +1,16 @@
-# -*- coding: utf-8 -*-
-#
-#  ...........       ____  _ __
-#  |  ,-^-,  |      / __ )(_) /_______________ _____  ___
-#  | (  O  ) |     / __  / / __/ ___/ ___/ __ `/_  / / _ \
-#  | / ,..´  |    / /_/ / / /_/ /__/ /  / /_/ / / /_/  __/
-#     +.......   /_____/_/\__/\___/_/   \__,_/ /___/\___/
-#
-#  MIT Licence
-#
-#  Copyright (C) 2023 Bitcraze AB
-#
 
-"""
-file: Crazyfile_controller.py
-
-"""
-
+#modified from Crazyfile_controller.py
+import numpy as np
 from controller import Robot
 from controller import Keyboard
 
 from math import cos, sin
 
-from pid_controller import pid_velocity_fixed_height_controller
-#from osqp_hover import QuadrotorLQR
+#from pid_controller import pid_velocity_fixed_height_controller
+from osqp_solver import QuadrotorLQR
 #from wall_following import WallFollowing
 
-FLYING_ATTITUDE = 0.3
+FLYING_ATTITUDE = 1
 
 if __name__ == '__main__':
 
@@ -53,51 +38,39 @@ if __name__ == '__main__':
     gps.enable(timestep)
     gyro = robot.getDevice("gyro")
     gyro.enable(timestep)
-    #camera = robot.getDevice("camera")
-    #camera.enable(timestep)
-    #range_front = robot.getDevice("range_front")
-    #range_front.enable(timestep)
-    #range_left = robot.getDevice("range_left")
-    #range_left.enable(timestep)
-    #range_back = robot.getDevice("range_back")
-    #range_back.enable(timestep)
-    #range_right = robot.getDevice("range_right")
-    #range_right.enable(timestep)
 
     # Get keyboard
     keyboard = Keyboard()
     keyboard.enable(timestep)
 
     # Initialize variables
-
     past_x_global = 0
     past_y_global = 0
     past_time = 0
     first_time = True
+    
+    # Crazyflie OSQP controller
+    OSQP_crazyfile = QuadrotorLQR(dt=0.05)
 
+    """
     # Crazyflie velocity PID controller
     PID_crazyflie = pid_velocity_fixed_height_controller()
     PID_update_last_time = robot.getTime()
     sensor_read_last_time = robot.getTime()
-
+    """
     height_desired = FLYING_ATTITUDE
 
-    #wall_following = WallFollowing(angle_value_buffer=0.01, reference_distance_from_wall=0.5,
-    #                               max_forward_speed=0.3, init_state=WallFollowing.StateWallFollowing.FORWARD)
+    #autonomous_mode = False
 
-    autonomous_mode = False
-
-    print("\n")
-
-    print("====== Controls =======\n\n")
-
-    print(" The Crazyflie can be controlled from your keyboard!\n")
-    print(" All controllable movement is in body coordinates\n")
-    print("- Use the up, back, right and left button to move in the horizontal plane\n")
-    print("- Use Q and E to rotate around yaw\n ")
-    print("- Use W and S to go up and down\n ")
-    print("- Press A to start autonomous mode\n")
-    print("- Press D to disable autonomous mode\n")
+    #print("\n")
+    #print("====== Controls =======\n\n")
+    #print(" The Crazyflie can be controlled from your keyboard!\n")
+    #print(" All controllable movement is in body coordinates\n")
+    #print("- Use the up, back, right and left button to move in the horizontal plane\n")
+    #print("- Use Q and E to rotate around yaw\n ")
+    #print("- Use W and S to go up and down\n ")
+    #print("- Press A to start autonomous mode\n")
+    #print("- Press D to disable autonomous mode\n")
 
     # Main loop:
     while robot.step(timestep) != -1:
@@ -108,6 +81,7 @@ if __name__ == '__main__':
         if first_time:
             past_x_global = gps.getValues()[0]
             past_y_global = gps.getValues()[1]
+            past_z_global = gps.getValues()[2]
             past_time = robot.getTime()
             first_time = False
 
@@ -115,12 +89,15 @@ if __name__ == '__main__':
         roll = imu.getRollPitchYaw()[0]
         pitch = imu.getRollPitchYaw()[1]
         yaw = imu.getRollPitchYaw()[2]
+        roll_rate = gyro.getValues()[0]
+        pitch_rate = gyro.getValues()[1]
         yaw_rate = gyro.getValues()[2]
         x_global = gps.getValues()[0]
         v_x_global = (x_global - past_x_global)/dt
         y_global = gps.getValues()[1]
         v_y_global = (y_global - past_y_global)/dt
-        altitude = gps.getValues()[2]
+        z_global = gps.getValues()[2]
+        v_z_global = (z_global - past_z_global)/dt
 
         # Get body fixed velocities
         cos_yaw = cos(yaw)
@@ -128,13 +105,22 @@ if __name__ == '__main__':
         v_x = v_x_global * cos_yaw + v_y_global * sin_yaw
         v_y = - v_x_global * sin_yaw + v_y_global * cos_yaw
 
+        OSQP_crazyfile.update_x0(x_global,y_global,z_global,v_x_global,v_x_global,v_x_global,
+                                 roll,pitch,yaw,roll_rate,pitch_rate,yaw_rate)
+        desired_state = np.zeros((12,1))
+        desired_state[0] = 0.5
+        desired_state[2] = 1
+        #print(desired_state)
+        res = OSQP_crazyfile.solve_linear_mpc(desired_state)
+
+        """
         # Initialize values
         desired_state = [0, 0, 0, 0]
         forward_desired = 0
         sideways_desired = 0
         yaw_desired = 0
         height_diff_desired = 0
-
+        
         key = keyboard.getKey()
         while key > 0:
             if key == Keyboard.UP:
@@ -153,51 +139,37 @@ if __name__ == '__main__':
                 height_diff_desired = 0.1
             elif key == ord('S'):
                 height_diff_desired = - 0.1
-            #elif key == ord('A'):
-            #    if autonomous_mode is False:
-            #        autonomous_mode = True
-            #        print("Autonomous mode: ON")
-            #elif key == ord('D'):
-            #    if autonomous_mode is True:
-            #        autonomous_mode = False
-            #        print("Autonomous mode: OFF")
             key = keyboard.getKey()
 
         height_desired += height_diff_desired * dt
-
-        #camera_data = camera.getImage()
-
-        # get range in meters
-        #range_front_value = range_front.getValue() / 1000
-        #range_right_value = range_right.getValue() / 1000
-        #range_left_value = range_left.getValue() / 1000
-
-        # Choose a wall following direction
-        # if you choose direction left, use the right range value
-        # if you choose direction right, use the left range value
-        #direction = WallFollowing.WallFollowingDirection.LEFT
-        #range_side_value = range_right_value
-
-        # Get the velocity commands from the wall following state machine
-        #cmd_vel_x, cmd_vel_y, cmd_ang_w, state_wf = wall_following.wall_follower(
-        #    range_front_value, range_side_value, yaw, direction, robot.getTime())
-
-        #if autonomous_mode:
-        #    sideways_desired = cmd_vel_y
-        #    forward_desired = cmd_vel_x
-        #    yaw_desired = cmd_ang_w
-
+        
         # PID velocity controller with fixed height
         motor_power = PID_crazyflie.pid(dt, forward_desired, sideways_desired,
                                         yaw_desired, height_desired,
                                         roll, pitch, yaw_rate,
-                                        altitude, v_x, v_y)
-        #print(motor_power)
-        m1_motor.setVelocity(-motor_power[0])
-        m2_motor.setVelocity(motor_power[1])
-        m3_motor.setVelocity(-motor_power[2])
-        m4_motor.setVelocity(motor_power[3])
+                                        z_global, v_x, v_y)
 
-        past_time = robot.getTime()
+        """
+        motor_power = res.x*1000000000
+        
+        #m3_motor.setVelocity(1000000)
+
+        # Limit the motor command
+        #m1 = np.clip(-motor_power[0], 0, 600)
+        #m2 = np.clip(motor_power[1], 0, 600)
+        #m3 = np.clip(-motor_power[2], 0, 600)
+        #m4 = np.clip(motor_power[3], 0, 600)
+        m1 = motor_power[0]
+        m2 = -motor_power[1]
+        m3 = motor_power[2]
+        m4 = -motor_power[3]
+        print(m1,m2,m3,m4)
+        
+        #m1_motor.setVelocity(m1)
+        #m2_motor.setVelocity(m2)
+        #m3_motor.setVelocity(m3)
+        #m4_motor.setVelocity(m4)
+        #past_time = robot.getTime()
         past_x_global = x_global
         past_y_global = y_global
+        past_z_global = z_global
