@@ -38,7 +38,7 @@ from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.positioning.motion_commander import MotionCommander
 from cflib.utils import uri_helper
 
-URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
+URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
 DEFAULT_HEIGHT = 1.5
 BOX_LIMIT = 0.5
@@ -309,9 +309,9 @@ if __name__ == '__main__':
         #    sys.exit(1)
 
         #logconf.start()
-        #take_off_simple(scf)
+        take_off_simple(scf)
         #hover_with_pid(scf, hover_time=10, reference_point=(0, 0, 1.5))
-        run_sequence(scf, hover_time=10)
+        # run_sequence(scf, hover_time=10)
         # move_linear_simple(scf)
         # move_box_limit(scf)
         logconf.stop()

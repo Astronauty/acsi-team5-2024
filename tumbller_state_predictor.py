@@ -21,9 +21,10 @@ URI = dict()
 URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
 class TumbllerStatePredictor():
-    def __init__(self):
+    def __init__(self, prediciton_horizon_time):
         # Initialize tumbller state
         self.tb_state = np.zeros(6)
+        self.prediction_horizon_time = prediciton_horizon_time
         
         # Define a log configuration to get position and orientation data
         t_log_conf = LogConfig(name='t_cf', period_in_ms=50)
@@ -50,7 +51,7 @@ class TumbllerStatePredictor():
             
             # Add the log configuration to the Crazyflie
             scf.cf.log.add_config(t_log_conf)
-            # scf.cf.log.add_config(o_log_conf)
+            scf.cf.log.add_config(o_log_conf)
             
             # Start logging if the configuration is added successfully
             if t_log_conf.valid and o_log_conf.valid:
@@ -83,9 +84,15 @@ class TumbllerStatePredictor():
         return None
         
 
-
-    def tumbller_state_prediction():
-        return NotImplemented
+    def tumbller_state_prediction(self, t_pred):
+        trans_pos = self.tb_state[0:3]
+        trans_vel = self.tb_state[3:6]
+        orient_pos = self.tb_state[6:9]
+        orient_vel = self.tb_state[9:12]
+        
+        future_trans_pos = self.tb_state[0:3] + t_pred*trans_vel
+        future_orient_pos = self.tb_state[6:9] + t_pred*orient_vel
+        return np.concatenate(future_trans_pos, np.zeros(3), future_orient_pos, np.zeros(3))
 
 if __name__ == '__main__':
     cflib.crtp.init_drivers()

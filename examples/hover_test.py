@@ -34,7 +34,7 @@ from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils import uri_helper
 
-URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
+URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
 DEFAULT_HEIGHT = 1.5
 

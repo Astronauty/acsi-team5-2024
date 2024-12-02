@@ -197,7 +197,8 @@ class QuadrotorLQR():
     
     
     def solve_linear_mpc(self, x_ref):
-        self.q = (2*self.x0.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
+        e = self.x_ref - self.x0
+        self.q = (2*self.e.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
         self.prob.update(q=self.q)
         res = self.prob.solve()
         
