@@ -1,0 +1,48 @@
+---- Geometry for base station 1
+origin: [0.8180106282234192, -0.9686980843544006, 1.8241198062896729]
+rotation matrix: [[-0.3553430438041687, -0.8168079257011414, -0.4544844329357147], [0.5240973830223083, -0.576701283454895, 0.62668776512146], [-0.7739853262901306, -0.015504949726164341, 0.6330136656761169]]
+valid: True
+
+---- Geometry for base station 2
+origin: [0.5462333559989929, 1.2773590087890625, 1.905889868736267]
+rotation matrix: [[-0.13726690411567688, 0.9846435785293579, -0.10786497592926025], [-0.7211071252822876, -0.17399245500564575, -0.6706199645996094], [-0.679089367389679, -0.014271728694438934, 0.7339168787002563]]
+valid: True
+
+---- Geometry for base station 3
+origin: [0.0, 0.0, 0.0]
+rotation matrix: [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+valid: False
+
+---- Geometry for base station 4
+origin: [0.0, 0.0, 0.0]
+rotation matrix: [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+valid: False
+
+---- Calibration data for base station 1
+phase: 0.0, tilt: -0.045501708984375, curve: 0.185302734375, gibmag: -0.005889892578125, gibphase: 3.1015625, ogeemag: -0.44775390625, ogeephase: 0.5986328125
+phase: -0.004791259765625, tilt: 0.046539306640625, curve: 0.4111328125, gibmag: 0.004669189453125, gibphase: 0.83056640625, ogeemag: -0.481201171875, ogeephase: 1.2177734375
+uid: 1349731158
+
+valid: True
+
+---- Calibration data for base station 2
+phase: 0.0, tilt: -0.047332763671875, curve: -0.2054443359375, gibmag: 0.0037078857421875, gibphase: 0.037628173828125, ogeemag: -0.2763671875, ogeephase: 1.2158203125
+phase: -0.00267791748046875, tilt: 0.045654296875, curve: 0.391357421875, gibmag: 0.00205230712890625, gibphase: 0.88720703125, ogeemag: -0.387939453125, ogeephase: 1.1455078125
+uid: 1350515293
+
+valid: True
+
+---- Calibration data for base station 3
+phase: 0.0, tilt: 0.0, curve: 0.0, gibmag: 0.0, gibphase: 0.0, ogeemag: 0.0, ogeephase: 0.0
+phase: 0.0, tilt: 0.0, curve: 0.0, gibmag: 0.0, gibphase: 0.0, ogeemag: 0.0, ogeephase: 0.0
+uid: 0
+
+valid: False
+
+---- Calibration data for base station 4
+phase: 0.0, tilt: 0.0, curve: 0.0, gibmag: 0.0, gibphase: 0.0, ogeemag: 0.0, ogeephase: 0.0
+phase: 0.0, tilt: 0.0, curve: 0.0, gibmag: 0.0, gibphase: 0.0, ogeemag: 0.0, ogeephase: 0.0
+uid: 0
+
+valid: False
+
