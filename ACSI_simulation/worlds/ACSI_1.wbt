@@ -7,8 +7,8 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/project
 WorldInfo {
 }
 Viewpoint {
-  orientation -0.48183684748107286 -0.5047669499235571 0.7162706043628836 4.266118825476047
-  position 0.4841677598766507 0.13915688582487495 0.5606033888631767
+  orientation -0.17267742818154172 -0.18251840069133615 0.9679202132436772 4.327497597548098
+  position 0.6465916799037149 1.6548517748287552 1.0260597001287193
 }
 TexturedBackground {
 }
@@ -18,6 +18,27 @@ DEF Tumbller Robot {
   translation -0.0022885682730946306 0.00012138814584810886 0.09822305045492065
   rotation 4.1430824148006094e-05 0.0006075741942715083 0.9999998145685255 3.141520215148782
   children [
+    Connector {
+      translation 0 0 0.07
+      rotation 0 0 1 3.141592653589793
+      children [
+        DEF T_magnet Shape {
+          appearance PBRAppearance {
+            baseColor 1 0 1
+          }
+          geometry Box {
+            size 0.08 0.08 0.01
+          }
+        }
+      ]
+      boundingObject USE T_magnet
+      physics Physics {
+        density 500
+      }
+      distanceTolerance 0.1
+      axisTolerance 3
+      rotationTolerance 3
+    }
     Gyro {
       rotation 0 -1 0 -5.307179586466759e-06
     }
@@ -55,8 +76,6 @@ DEF Tumbller Robot {
         boundingObject USE wheel_left
         physics Physics {
         }
-        linearVelocity 1.1701793029092998e-05 -2.3302245190299894e-09 7.56463933932984e-05
-        angularVelocity 3.635225520583907e-08 0.0002927344122136057 -3.822030840030818e-08
       }
     }
     HingeJoint {
@@ -89,8 +108,6 @@ DEF Tumbller Robot {
         boundingObject USE wheel_right
         physics Physics {
         }
-        linearVelocity 1.1703094344249758e-05 -3.442464194991194e-09 7.490731440095975e-05
-        angularVelocity 1.0804203235473241e-07 0.00029273327447163367 -3.819739343492482e-08
       }
     }
     DEF T_box Solid {
@@ -120,8 +137,6 @@ DEF Tumbller Robot {
 Crazyflie {
   hidden linearVelocity_0 -2.8504611203159943e-10 1.2525176409932073e-17 -1.8077318591383164e-05
   hidden angularVelocity_0 -1.4572233429176889e-15 -3.040652107871965e-13 8.416694261824941e-17
-  hidden linearVelocity_1 1.8312467319072162e-07 8.87495000508919e-17 1.8279953996124265e-07
-  hidden angularVelocity_1 -1.4363141685059638e-14 7.14382787155261e-05 -1.5603107414893987e-15
   translation 0.49999999573413884 1.2374769664664943e-16 0.014982841540091659
   rotation -0.0008764833805292232 0.9999940427606597 -0.0033385955244145077 2.3716797418393426e-14
   controller "Crazyfile_controller"
@@ -138,9 +153,21 @@ Crazyflie {
         axis 0 1 0
       }
       endPoint Solid {
-        translation -0.24999989826592572 -1.3121065352931586e-16 0.0025172316288182037
-        rotation 1.1457603788195667e-11 1 -1.303128972125087e-11 6.892029346394973e-05
+        translation -0.24999989826592572 -1.3877787807814457e-16 0.0025172316288182527
+        rotation 3.2217598067049605e-12 1 -2.4163198550287204e-12 6.892027883271305e-05
         children [
+          Connector {
+            rotation 0 1 0 1.5707996938995747
+            boundingObject Box {
+              size 0.005 0.005 0.005
+            }
+            physics Physics {
+              density 1
+            }
+            distanceTolerance 0.1
+            axisTolerance 3
+            rotationTolerance 3
+          }
           DEF magnet Shape {
             appearance PBRAppearance {
               baseColor 0 1 0
