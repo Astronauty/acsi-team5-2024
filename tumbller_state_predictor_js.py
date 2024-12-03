@@ -14,8 +14,10 @@ URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
 
 class TumbllerStatePredictor:
-    def __init__(self, prediction_horizon_time):
-        self.tb_state = np.zeros(6)  # Initialize state vector
+    def __init__(self, prediction_horizon_time, sampling_rate=20):
+        self.tb_state = np.zeros(12)  # Initialize state vector
+        self.sampling_rate = sampling_rate
+        self.prev_future_state = np.zeros(6) # For debugging the future state values
         self.prediction_horizon_time = prediction_horizon_time
 
         # Define log configuration for translation
@@ -58,13 +60,26 @@ class TumbllerStatePredictor:
                 # Let the logging run for some time
                 #time.sleep(100)
 
-                # Run a while loop until 100 seconds have passed which calls the tumbller_state_prediction function
-                t_pred = 1
-                start_time = time.time()
-                while time.time() - start_time < 100:
-                    future_state = self.tumbller_state_prediction(t_pred)
-                    print(f"Future state: {future_state}")
-                    time.sleep(0.05)
+                # Run a while loop which calls the tumbller_state_prediction function
+                while True:
+                    future_state = self.tumbller_state_prediction(self.prediction_horizon_time)
+
+                    # print each element up to the 3rd decimal place
+                    future_state = np.round(future_state, 3)
+                    #print(f"Future state: {future_state}")
+
+                    cur_state = np.concatenate([
+                        np.round(self.tb_state[0:3], 3),  # Position
+                        np.round(self.tb_state[6:9], 3)  # Orientation
+                    ])
+                    #print(f"Current state: {cur_state}")
+
+                    # Show the difference between the current and future state
+                    diff = np.round(cur_state - self.prev_future_state, 3)
+                    print(f"Difference: {diff}")
+
+                    self.prev_future_state = future_state
+                    time.sleep(1/self.sampling_rate)
                 self.t_log_conf.stop()
             else:
                 print("Log configuration is not valid.")
@@ -78,7 +93,8 @@ class TumbllerStatePredictor:
         vy = data["stateEstimate.vy"]
         vz = data["stateEstimate.vz"]
         self.tb_state[0:6] = np.array([x, y, z, vx, vy, vz])
-        print(f"State updated: {self.tb_state}")  # Print updated state
+        trans_state = np.round(self.tb_state[0:6], 3)
+        #print(f"State updated: {trans_state}")  # Print updated state
 
     def orientation_state_est_callback(self, timestamp, data, logconf):
         # Update orientation state with received data
@@ -89,7 +105,8 @@ class TumbllerStatePredictor:
         rate_pitch = data["stateEstimateZ.ratePitch"]
         rate_yaw = data["stateEstimateZ.rateYaw"]
         self.tb_state[6:12] = np.array([roll, pitch, yaw, rate_roll, rate_pitch, rate_yaw])
-        print(f"Orientation state updated: {self.tb_state[6:12]}")
+        orient_state = np.round(self.tb_state[6:12], 3)
+        #print(f"Orientation state updated: {orient_state}")
 
     def tumbller_state_prediction(self, t_pred):
         # Predict future state based on current translation and orientation
@@ -106,9 +123,13 @@ class TumbllerStatePredictor:
 
 
 if __name__ == "__main__":
-    # Initialize drivers
-    init_drivers()
+    try:
+        # Initialize drivers
+        init_drivers()
 
-    # Initialize the TumbllerStatePredictor
-    tumbller_state_predictor = TumbllerStatePredictor(1)
-    
+        # Initialize the TumbllerStatePredictor
+        tumbller_state_predictor = TumbllerStatePredictor(0.1)
+
+    except KeyboardInterrupt:
+        print("Interrupted by user.")
+
