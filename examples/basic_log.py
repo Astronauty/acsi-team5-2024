@@ -39,7 +39,7 @@ from cflib.utils import uri_helper
 # Only output errors from the logging framework
 logging.basicConfig(level=logging.ERROR)
 
-uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
+uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
 class LoggingExample:
     """
