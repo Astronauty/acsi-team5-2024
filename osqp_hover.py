@@ -18,8 +18,8 @@ from scipy import sparse
 # from scipy import linalg
 
 URI = dict()
-URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
-#URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
+URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
+# URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
 N_MPC_HORIZON = 3 # number of steps to consider in MPC horizon
 N_STATES = 12
@@ -197,8 +197,8 @@ class QuadrotorLQR():
     
     
     def solve_linear_mpc(self, x_ref):
-        e = self.x_ref - self.x0
-        self.q = (2*self.e.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
+        e = x_ref - self.x0
+        self.q = (2*e.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
         self.prob.update(q=self.q)
         res = self.prob.solve()
         
@@ -390,7 +390,11 @@ def main():
             except KeyboardInterrupt:
                 scf.cf.param.set_value('motorPowerSet.enable', 0)
                 print("Logging stopped.")
-
+                quadrotor_lqr.set_motor_thrusts(np.zeros(4))
+            
+                quadrotor_lqr.scf.cf.param.set_value('motorPowerSet.enable', 0)
+                
+            
             t_log_conf.stop()
             o_log_conf.stop()
         else:
@@ -399,7 +403,6 @@ def main():
         # print(f"Could not connect to Crazyflie: {e}")
 
  
-    
             
 
 if __name__ == '__main__':
