@@ -34,10 +34,12 @@ from threading import Timer, Thread
 import cflib.crtp  # noqa
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.log import LogConfig
+from cflib.utils import uri_helper
 
 # Only output errors from the logging framework
 logging.basicConfig(level=logging.ERROR)
 
+uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
 class LoggingExample:
     """
@@ -125,16 +127,18 @@ class LoggingExample:
 if __name__ == '__main__':
     # Initialize the low-level drivers (don't list the debug drivers)
     cflib.crtp.init_drivers(enable_debug_driver=False)
-    
-    # Scan for Crazyflies
-    print('Scanning interfaces for Crazyflies...')
-    available = cflib.crtp.scan_interfaces()
-    print('Crazyflies found:')
-    for i in available:
-        print(i[0])
 
-    if len(available) > 0:
-        le = LoggingExample(available[0][0])
+    le = LoggingExample(uri)
+
+    # Scan for Crazyflies
+    #print('Scanning interfaces for Crazyflies...')
+    #available = cflib.crtp.scan_interfaces()
+    #print('Crazyflies found:')
+    #for i in available:
+    #    print(i[0])
+
+    #if len(available) > 0:
+        #le = LoggingExample(available[0][0])
         #threads = []
         #for cf in available:
         #    thread = Thread(target=lambda: LoggingExample(cf[0]))
@@ -144,5 +148,5 @@ if __name__ == '__main__':
         # Wait for the threads to finish
         #for thread in threads:
         #    thread.join()
-    else:
-        print('No Crazyflies found, cannot run example')
+    #else:
+    #    print('No Crazyflies found, cannot run example')
