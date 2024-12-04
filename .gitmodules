@@ -4,3 +4,6 @@
 [submodule "_thirdparty/TinyMPC"]
 	path = _thirdparty/TinyMPC
 	url = https://github.com/TinyMPC/TinyMPC.git
+[submodule "_thirdparty/tinympc-crazyflie-firmware"]
+	path = _thirdparty/tinympc-crazyflie-firmware
+	url = git@github.com:RoboticExplorationLab/tinympc-crazyflie-firmware.git

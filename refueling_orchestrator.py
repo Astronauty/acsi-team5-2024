@@ -10,6 +10,7 @@ from pynput import keyboard
 
 import cflib.crtp
 from cflib.crazyflie import Crazyflie
+from cflib.crazyflie import Commander
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
 from cflib.positioning.motion_commander import MotionCommander
@@ -42,26 +43,32 @@ class RefuelingOrchestrator():
         threads = []
         
         cflib.crtp.init_drivers()
+        
+        # Initialize key listener in separate thread
+        listener_thread = Thread(target=self.start_key_listener)
+        listener_thread.daemon = True
+        listener_thread.start()
 
         with Swarm(list(URI.values())) as swarm:
             scfs = swarm._cfs # Crazyflie instances
             
             self.cf_translation_log_conf, self.cf_orientation_log_conf, self.tb_translation_log_conf, self.tb_orientation_log_conf = self.initialize_log_configs()
-            
-            if URI['cf'] in scfs:
-                threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
-                print("Successfully started cf thread.")
-            # if URI['tb'] in scfs:
-            #     threads.append(self.start_crazyflie_thread(scfs[URI['tb']], self.run_tb))
-            #     print("Successfully started tb thread.")
-
             try:
-                # Wait for all threads to finish
-                for thread in threads:
-                    thread.join()
-                    #thread.join(timeout=5)
-                    if thread.is_alive():
-                        logger.info("Thread did not finish in time (5 seconds).")
+                self.run_cf(scfs[URI['cf']])
+            # if URI['cf'] in scfs:
+            #     threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
+            #     print("Successfully started cf thread.")
+            # # if URI['tb'] in scfs:
+            # #     threads.append(self.start_crazyflie_thread(scfs[URI['tb']], self.run_tb))
+            # #     print("Successfully started tb thread.")
+
+            # try:
+            #     # Wait for all threads to finish
+            #     for thread in threads:
+            #         thread.join()
+            #         #thread.join(timeout=5)
+            #         if thread.is_alive():
+            #             logger.info("Thread did not finish in time (5 seconds).")
             except KeyboardInterrupt:
                 logger.info("Keyboard interrupt detected. Stopping threads")
                 stop_event.set()  # Signal all threads to stop
@@ -70,7 +77,7 @@ class RefuelingOrchestrator():
         
         
         return None
-    
+     
     def run_tb(self, scf):
         # Add log configs and callbacks to the tb instance
         scf.cf.log.add_config(self.tb_translation_log_conf)
@@ -86,7 +93,6 @@ class RefuelingOrchestrator():
         # Keep logging running until the stop event is set
         try:
             while not stop_event.is_set():
-                print("here")
                 time.sleep(0.1)
         except KeyboardInterrupt:
             logger.info(f"Keyboard interrupt detected for {scf.cf.uri}.")
@@ -105,11 +111,17 @@ class RefuelingOrchestrator():
         self.cf_translation_log_conf.start()
         self.cf_orientation_log_conf.start()
         
-        logger.info(f"Started logging for {self.URI['tb']}.")
+        logger.info(f"Started logging for {self.URI['cf']}.")
+        time.sleep(2)
 
         try:
-            while not stop_event.is_set():
-                time.sleep(0.1)
+            # Commander.send_position_setpoint(self, 0, 0, 0.2, 0)
+            print("here")
+            # scf.cf.commander.send_position_setpoint(0, 0, 0.5, 0)
+            time.sleep(5)
+            # scf.cf.commander.send_stop_setpoint()
+            # scf.cf.commander.send_notify_setpoint_stop()
+            time.sleep(0.1)
         except KeyboardInterrupt:
             logger.info(f"Keyboard interrupt detected for {scf.cf.uri}.")
         finally:
@@ -131,7 +143,27 @@ class RefuelingOrchestrator():
         t.daemon = True
         t.start()
         return t
+    
+    def start_key_listener(self):
+        # Define the key listener callback
+        def on_press(key):
+            try:
+                if key.char == '1':
+                    self.refueling_phase = 1
+                    print(f"Switching into Phase 1: Dwell")
+                elif key.char == '2':
+                    self.refueling_phase = 2
+                    print(f"Switching into Phase 2: Rendesvous & Follow")
+                elif key.char == '3':
+                    self.refueling_phase = 3
+                    print(f"Switching into Phase 3: Detach")
+            except AttributeError:
+                pass
 
+        # Start the key listener
+        with keyboard.Listener(on_press=on_press) as listener:
+            listener.join()
+            
     def initialize_log_configs(self):
         # Crazyflie log configs
         cf_translation_log_conf = LogConfig(name='t_cf', period_in_ms=50)
@@ -208,27 +240,27 @@ class RefuelingOrchestrator():
         vyaw = data['stateEstimateZ.rateYaw']
         
         self.cf_state[6:12] = np.array([roll, pitch, yaw, vroll, vpitch, vyaw])
-    
         
-        
-    
-    def on_key_event(self, e):
-        match e.name:
+    def on_key_press(self, key):
+        try:
+            k = key.char 
+        except:
+            k = key.name
+
+        match k:
             case '1':
                 self.refueling_phase = 1
-                print(f"Switching into Phase 1: Dwell")
+                print(f"\nSwitching into Phase 1: Dwell")
             case '2':
                 self.refueling_phase = 2
-                print(f"Switching into Phase 2: Rendesvous & Follow")
+                print(f"\nSwitching into Phase 2: Rendesvous & Follow")
             case '3':
                 self.refueling_phase = 3
-                print(f"Switching into Phase 3: Detach")
+                print(f"\nSwitching into Phase 3: Detach")
             case _:
-                print()
+                print("\nInvalid Input")
                 
         return None
     
 if __name__ == '__main__':
-
-    print("hellopyt")
     refueling_orchestrator = RefuelingOrchestrator(URI, verbose=False)
