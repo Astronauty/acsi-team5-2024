@@ -9,7 +9,7 @@ uri_dir = {'tumbller_uri': 'radio://0/20/2M/E7E7E7E702',
            'crazyflie_uri': 'radio://0/20/2M/E7E7E7E701'}
 
 uris = [
-    'radio://0/20/2M/E7E7E7E701', # Crazyflie
+    #'radio://0/20/2M/E7E7E7E701', # Crazyflie
     'radio://0/20/2M/E7E7E7E702', # Tumbller
 ]
 
@@ -56,7 +56,6 @@ def log_trans_callback(uri, timestamp, data, log_conf):
         trans_c['avg_100_samples'].pop(0)
         trans_c['avg_100_samples'].append(rate)
         #print(f"Average Crazyflie Rate: {np.mean(trans_c['avg_100_samples'])}")
-
 
 def log_orient_callback(uri, timestamp, data, log_conf):
     """Callback function that logs teh data and updates the global position variables with the matching uri
