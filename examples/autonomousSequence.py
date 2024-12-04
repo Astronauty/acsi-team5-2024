@@ -40,7 +40,7 @@ from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.utils import uri_helper
 
 # URI to the Crazyflie to connect to
-uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
+uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
 # Change the sequence according to your setup
 #             x    y    z  YAW

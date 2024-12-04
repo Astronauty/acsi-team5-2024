@@ -1,9 +1,10 @@
 import time
+import numpy as np
 
 from cflib.crtp import init_drivers
-#from cflib.crazyflie import SyncCrazyflie
 from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.swarm import CachedCfFactory
+from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.crazyflie.swarm import Swarm
 
 
@@ -49,13 +50,11 @@ devices = {'tumbller': CrazyflieDevice('Tumbller', 'radio://0/20/2M/E7E7E7E702')
 # Also need a separate list of URIs for the Swarm class
 uris = [
     devices['tumbller'].uri, # Tumbller crazyflie
-#    uri_dir['crazyflie_uri'], # Aerial crazyflie
+#   devices['crazyflie'].uri, # Aerial crazyflie
 ]
 
-# Parameters for the takeoff and land functions for specific crazyflies
-params = {devices['tumbller'].uri: [{'device': 'tumbller'}]}
 
-# Callback function to update the global position variables with the matching uri, No need to change
+# Callback function to update the global position variables with the matching uri
 def log_trans_callback(uri, timestamp, data, log_conf):
     """Callback function that logs the translational data and updates the global position variables with the matching uri
     """
@@ -67,11 +66,9 @@ def log_trans_callback(uri, timestamp, data, log_conf):
         if device.uri == uri:
             device.update_position(x, y, z)
             rate, avg_rate = device.update_rate()
-            print(f'{device.name} position: {device.position}')
-            # print(f'{devices[uri].name} Rate: {rate}')
             break
 
-# Callback function to update the global orientation variables with the matching uri, No need to change
+# Callback function to update the global orientation variables with the matching uri
 def log_orient_callback(uri, timestamp, data, log_conf):
     """Callback function that logs teh data and updates the global position variables with the matching uri
     """
@@ -83,7 +80,7 @@ def log_orient_callback(uri, timestamp, data, log_conf):
             device.update_orientation(roll, pitch, yaw)
             break
 
-# Function to setup the logging configurations for the crazyflie devices. No need to change
+# Function to set up the logging configurations for the crazyflie devices
 def setup_async_logging(scf):
 
     # Define the logging variables
@@ -105,11 +102,11 @@ def setup_async_logging(scf):
     }
 
     # Define log configuration for translation and orientation for all crazyflies
-    t_log_conf = LogConfig(name="Translation", period_in_ms=20)
+    t_log_conf = LogConfig(name="Translation", period_in_ms=100)
     for key in t_lg_vars:
         t_log_conf.add_variable(key, t_lg_vars[key])
 
-    o_log_conf = LogConfig(name="Orientation", period_in_ms=20)
+    o_log_conf = LogConfig(name="Orientation", period_in_ms=100)
     for key in o_lg_vars:
         o_log_conf.add_variable(key, o_lg_vars[key])
 
@@ -129,25 +126,83 @@ def setup_async_logging(scf):
         o_log_conf.start()
         print("Logging orientation data...")
 
+# Resets the state estimator on the crazyflie
+def reset_estimator(scf):
+    cf = scf.cf
+    cf.param.set_value('kalman.resetEstimation', '1')
+    time.sleep(0.1)
+    cf.param.set_value('kalman.resetEstimation', '0')
 
+# Works in-tandem with the reset_estimator function to wait for the position estimator to find the position
+def wait_for_position_estimator(scf):
+    print('Waiting for estimator to find position...')
+
+    log_config = LogConfig(name='Kalman Variance', period_in_ms=500)
+    log_config.add_variable('kalman.varPX', 'float')
+    log_config.add_variable('kalman.varPY', 'float')
+    log_config.add_variable('kalman.varPZ', 'float')
+
+    var_y_history = [1000] * 10
+    var_x_history = [1000] * 10
+    var_z_history = [1000] * 10
+
+    threshold = 0.001
+
+    with SyncLogger(scf, log_config) as logger:
+        for log_entry in logger:
+            data = log_entry[1]
+
+            var_x_history.append(data['kalman.varPX'])
+            var_x_history.pop(0)
+            var_y_history.append(data['kalman.varPY'])
+            var_y_history.pop(0)
+            var_z_history.append(data['kalman.varPZ'])
+            var_z_history.pop(0)
+
+            min_x = min(var_x_history)
+            max_x = max(var_x_history)
+            min_y = min(var_y_history)
+            max_y = max(var_y_history)
+            min_z = min(var_z_history)
+            max_z = max(var_z_history)
+
+            # print("{} {} {}".
+            #       format(max_x - min_x, max_y - min_y, max_z - min_z))
+
+            if (max_x - min_x) < threshold and (
+                    max_y - min_y) < threshold and (
+                    max_z - min_z) < threshold:
+                break
+
+# Function to takeoff the crazyflie
 def takeoff(scf, params):
-    if 'device' in params:
-        if params['device'] == 'tumbller':
-            print("Sending command to Tumbller...")
-            scf.cf.commander.send_position_setpoint(0, 0, 1.6, 0)
-            #time.sleep(3)
+    # Params no longer has the URI as the key, the dictionary in the value replaces params
+    if params['enable']:
+        print("Taking off")
+        z_values = np.linspace(0, 1.6, 50)
+        for z in z_values:
+            scf.cf.commander.send_position_setpoint(0, 0, z, 0)
+            time.sleep(0.1)
 
+    print("Exiting takeoff function")
 
+# Function to land the crazyflie
 def land(scf, params):
-    if 'device' in params:
-        if params['device'] == 'tumbller':
-            print("Landing Tumbller...")
-            scf.cf.commander.send_position_setpoint(0, 0, 0, 0)
-            time.sleep(3)
+    if params['land']:
+        print("Landing")
+        z_values = np.linspace(1.6, 0, 50)
+        for z in z_values:
+            scf.cf.commander.send_position_setpoint(0, 0, z, 0)
+            time.sleep(0.1)
+    print("Exiting land function")
 
-            scf.cf.commander.send_stop_setpoint()
-            # Hand control over to the high level commander to avoid timeout and locking of the Crazyflie
-            scf.cf.commander.send_notify_setpoint_stop()
+# Function to stop all crazyflies
+def stop_all(scf):
+    scf.cf.commander.send_stop_setpoint()
+    # Hand control over to the high level commander to avoid timeout and locking of the Crazyflie
+    scf.cf.commander.send_notify_setpoint_stop()
+    time.sleep(0.1)
+
 
 
 if __name__ == '__main__':
@@ -157,24 +212,37 @@ if __name__ == '__main__':
 
     try:
         with Swarm(uris, factory=factory) as swarm:
+            # Set up the logging configurations for the crazyflie devices
             swarm.parallel_safe(setup_async_logging)
-            swarm.parallel_safe(takeoff, args_dict=params)
+            swarm.parallel_safe(reset_estimator)
 
-            # Configuration should be done at this point. Motion commander can now be called for the specific crazyflie
+            # We will pass in our 'param' dictionary to contain our arbitrary parameters. In this case, the "takeoff"
+            # function is looking for the 'enable' key and if it is set to True, it will takeoff. The key has to be the
+            # URI value, and teh value is another dictionary with the key 'enable' and the value
+            params = {devices['tumbller'].uri: [{'enable': True}],
+                      devices['crazyflie'].uri: [{'enable': False}]}
+            swarm.parallel_safe(takeoff, args_dict=params) # Executes the function
+
+            # Configuration should be done at this point.
             while True:
-                [x, y, z] = devices['tumbller'].get_position()
-                print(f'Tumbller position: {x}, {y}, {z}')
 
-                # send command to land if it reaches its height
-                if z >= 1.5:
-                    print("Landing...")
-                    swarm.parallel_safe(land, args_dict=params)
+                # Sample the current position of the crazyflie
+                [x, y, z] = devices['tumbller'].get_position()
+
+                # If it reaches its height, exit out of the loop and land the crazyflie
+                if z >= 1.6:
                     break
                 else:
-                    print("climb!")
+                    print(f'Tumbller height: {z}')
 
                 time.sleep(0.05)
 
+            print("Landing...")
+            # Set up the parameters so the crazyflie is the only one doing the landing sequence. The "land" funtion only
+            # looks for the 'land' key, and if it is set to True, it will land
+            params = {devices['tumbller'].uri: [{'land': True}],
+                      devices['crazyflie'].uri: [{'land': False}]}
+            swarm.parallel_safe(land, args_dict=params)
             print("Done")
 
     except KeyboardInterrupt:
