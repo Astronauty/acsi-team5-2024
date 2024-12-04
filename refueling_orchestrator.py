@@ -22,7 +22,7 @@ from scipy import sparse
 
 URI = dict()
 URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
-# URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
+URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
 
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -32,7 +32,10 @@ stop_event = Event()
 class RefuelingOrchestrator():
     def __init__(self, URI, max_scenario_time, verbose=False):
         assert URI['cf'] is not None, "CrazyFlie URI not defined"
-        # assert URI['tb'] is not None, "Tumbller URI is not defined"
+        assert URI['tb'] is not None, "Tumbller URI is not defined"
+        
+        ## Params
+        self.tether_length = 0.2
         
         self.URI = URI
         self.max_scenario_time = max_scenario_time
@@ -41,6 +44,8 @@ class RefuelingOrchestrator():
         
         self.cf_state = np.zeros(12)
         self.tb_state = np.zeros(12)
+        
+        self.cf_reference_pos = np.zeros(6)
         
         threads = []
         
@@ -59,21 +64,22 @@ class RefuelingOrchestrator():
                 self.start_time = time.time()
                 self.end_time = self.start_time + self.max_scenario_time
                 
-                self.run_cf(scfs[URI['cf']])
-            # if URI['cf'] in scfs:
-            #     threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
-            #     print("Successfully started cf thread.")
-            # # if URI['tb'] in scfs:
-            # #     threads.append(self.start_crazyflie_thread(scfs[URI['tb']], self.run_tb))
-            # #     print("Successfully started tb thread.")
+                # self.run_cf(scfs[URI['cf']])
+                # self.run_tb(scfs[URI['tb']])
+                if URI['cf'] in scfs:
+                    threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
+                    print("Successfully started cf thread.")
+            # if URI['tb'] in scfs:
+            #     threads.append(self.start_crazyflie_thread(scfs[URI['tb']], self.run_tb))
+            #     print("Successfully started tb thread.")
 
-            # try:
-            #     # Wait for all threads to finish
-            #     for thread in threads:
-            #         thread.join()
-            #         #thread.join(timeout=5)
-            #         if thread.is_alive():
-            #             logger.info("Thread did not finish in time (5 seconds).")
+
+                # Wait for all threads to finish
+                for thread in threads:
+                    thread.join()
+                    #thread.join(timeout=5)
+                    if thread.is_alive():
+                        logger.info("Thread did not finish in time (5 seconds).")
             except KeyboardInterrupt:
                 logger.info("Keyboard interrupt detected. Stopping threads")
                 stop_event.set()  # Signal all threads to stop
@@ -94,20 +100,23 @@ class RefuelingOrchestrator():
         self.tb_orientation_log_conf.start()
         
         logger.info(f"Started logging for {self.URI['tb']}.")
+        print("TB initialization complete!")
+        
 
         # Keep logging running until the stop event is set
         try:
             while not stop_event.is_set():
                 time.sleep(0.1)
         except KeyboardInterrupt:
-            logger.info(f"Keyboard interrupt detected for {scf.cf.uri}.")
+            logger.info(f"Keyboard interrupt detected for {self.URI['tb']}.")
         finally:
             self.tb_translation_log_conf.stop()
             self.tb_orientation_log_conf.stop()
-            logger.info(f"Stopped logging for {scf.cf.uri}.")
+            logger.info(f"Stopped logging for {self.URI['tb']}.")
     
     def run_cf(self, scf):
         # Add log configs and callbacks to the cf instance
+        
         scf.cf.log.add_config(self.cf_translation_log_conf)
         scf.cf.log.add_config(self.cf_orientation_log_conf)
         
@@ -117,6 +126,7 @@ class RefuelingOrchestrator():
         self.cf_orientation_log_conf.start()
         
         logger.info(f"Started logging for {self.URI['cf']}.")
+        print("CF initialization complete!")
 
         try:
             # Commander.send_position_setpoint(self, 0, 0, 0.2, 0)
@@ -126,14 +136,23 @@ class RefuelingOrchestrator():
                 match self.mode_select:
                     case 1:
                         scf.cf.commander.send_position_setpoint(0, 0, 0.5, 0)
+                        
                     case 2:
-                        scf.cf.commander.send_position_setpoint(0.25, 0, 0.5, 0)
+                        # update the cf_reference to be the position of the tb plus tether length
+                        self.cf_reference_pos = self.tb_state[0:3] + np.array([0, 0, self.tether_length])
+                        x_ref = self.cf_reference_pos[0]
+                        y_ref =  self.cf_reference_pos[1]
+                        z_ref =  self.cf_reference_pos[2]
+                        scf.cf.commander.send_position_setpoint(x_ref, y_ref, z_ref, 0)
+                        
                     case 3: 
                         scf.cf.commander.send_position_setpoint(-0.25, 0, 0.5, 0)
+                        
                     case 4:
                         scf.cf.commander.send_position_setpoint(0, 0, 0.1, 0)
                         time.sleep(3)
                         break
+                    
                     case _:
                         pass
                     
@@ -243,7 +262,7 @@ class RefuelingOrchestrator():
         vx = data['stateEstimate.vx']
         vy = data['stateEstimate.vy']
         vz = data['stateEstimate.vz']
-        print(self.cf_state)
+    
         self.cf_state[0:6] = np.array([x, y, z, vx, vy, vz])
     
     def cf_orientation_callback(self, timestamp, data, logconf):
@@ -257,6 +276,7 @@ class RefuelingOrchestrator():
         self.cf_state[6:12] = np.array([roll, pitch, yaw, vroll, vpitch, vyaw])
         
     def tb_translation_callback(self, timestamp, data, logconf):
+        print('hello tb')
         x = data['stateEstimate.x']
         y = data['stateEstimate.y']
         z = data['stateEstimate.z']
