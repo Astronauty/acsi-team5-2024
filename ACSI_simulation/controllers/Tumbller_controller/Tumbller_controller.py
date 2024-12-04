@@ -1,118 +1,116 @@
-import csv
-from controller import Robot, Gyro, InertialUnit, GPS
+from controller import Robot, Gyro, InertialUnit, GPS, Keyboard
 
-def read_trajectory(file_path):
-    """Read trajectory waypoints from a CSV file."""
-    waypoints = []
-    with open(file_path, mode='r') as file:
-        reader = csv.reader(file)
-        for row in reader:
-            waypoints.append([float(row[0]), float(row[1])])  # Assuming [x, y] format
-    return waypoints
-
-if __name__ == "__main__":
-    # Create the Robot instance
-    robot = Robot()
-    timestep = int(robot.getBasicTimeStep())
-
-    # Get devices
+def initialize_devices(robot, timestep):
+    """Initialize and enable sensors and motors."""
     motor_left = robot.getDevice('motor_left')
     motor_right = robot.getDevice('motor_right')
     imu = robot.getDevice('inertial unit')
     gyro = robot.getDevice('gyro')
     gps = robot.getDevice('gps')
-    
+    keyboard = robot.getKeyboard()
+
     # Enable sensors
     imu.enable(timestep)
     gyro.enable(timestep)
     gps.enable(timestep)
-    
+    keyboard.enable(timestep)
+
     # Set motors to velocity mode
     motor_left.setPosition(float('inf'))
     motor_right.setPosition(float('inf'))
     motor_left.setVelocity(0.0)
     motor_right.setVelocity(0.0)
 
+    return motor_left, motor_right, imu, gyro, gps, keyboard
+
+def calculate_pid(error, integral, prev_error, Kp, Ki, Kd, timestep):
+    """Generic PID control calculation."""
+    integral += error * timestep / 1000.0
+    derivative = (error - prev_error) / (timestep / 1000.0)
+    output = Kp * error + Ki * integral + Kd * derivative
+    return output, integral, error
+
+def main():
+    # Create the Robot instance
+    robot = Robot()
+    timestep = int(robot.getBasicTimeStep())
+    
+    # Initialize devices
+    motor_left, motor_right, imu, gyro, gps, keyboard = initialize_devices(robot, timestep)
+    
     # PID parameters for pitch stabilization
-    Kp_pitch = 65.0
-    Ki_pitch = 0.5
-    Kd_pitch = 0.5
-    
-    # PID parameters for position control
-    Kp_pos = 3.0
-    Ki_pos = 0.01
-    Kd_pos = 0.10
-    
-    # Initialize variables
+    Kp_pitch = 180.0
+    Ki_pitch = 0.0
+    Kd_pitch = 0.3
     pitch_integral = 0.0
     pitch_prev_error = 0.0
-    pos_integral = 0.0
-    pos_prev_error = 0.0
 
-    # Read trajectory waypoints from a CSV file
-    trajectory_file = "Trace_T.csv"  # Replace with your file path
-    waypoints = read_trajectory(trajectory_file)
-    current_waypoint_index = 0
+    # PID parameters for speed stabilization
+    Kp_speed = 15#10.0
+    Ki_speed = Kp_speed / 200.0
+    Kd_speed = 0.0
+    speed_integral = 0.0
+    speed_prev_error = 0.0
+
+    # PID parameters for Z rotation control
+    Kp_z_rotation = 0.1
+    Ki_z_rotation = 0.0
+    Kd_z_rotation = 0.0
+    z_rotation_integral = 0.0
+    z_rotation_prev_error = 0.0
+
+    # Target values
+    target_speed = 0.0
+    target_z_rotation = 0.0  # Maintain zero angular velocity around Z-axis
+
+    # Speed and rotation increments for keyboard control
+    speed_increment = 0.05
+    rotation_increment = 0.1
 
     # Main control loop
     while robot.step(timestep) != -1:
         # Read IMU data
-        roll, pitch, yaw = imu.getRollPitchYaw()
+        _, pitch, _ = imu.getRollPitchYaw()
         pitch_rate = gyro.getValues()[1]
 
+        # Read GPS data for speed
+        velocity = gps.getSpeed()
+
+        # Read gyro data for Z rotation
+        z_rotation_rate = gyro.getValues()[2]
+
+        # Read keyboard input
+        key = keyboard.getKey()
+        if key == Keyboard.UP:
+            target_speed += speed_increment
+        elif key == Keyboard.DOWN:
+            target_speed -= speed_increment
+        elif key == Keyboard.LEFT:
+            target_z_rotation += rotation_increment
+        elif key == Keyboard.RIGHT:
+            target_z_rotation -= rotation_increment
+        elif key == -1:  # No key pressed
+            pass  # Maintain the current targets
+
         # PID for pitch stabilization
-        pitch_error = pitch
-        pitch_integral += pitch_error * timestep / 1000.0
-        pitch_derivative = (pitch_error - pitch_prev_error) / (timestep / 1000.0)
-        pitch_pid_output = Kp_pitch * pitch_error + Ki_pitch * pitch_integral + Kd_pitch * pitch_derivative
-        pitch_prev_error = pitch_error
+        pitch_pid_output, pitch_integral, pitch_prev_error = calculate_pid(
+            pitch, pitch_integral, pitch_prev_error, Kp_pitch, Ki_pitch, Kd_pitch, timestep)
 
-        # Read GPS data
-        gps_position = gps.getValues()  # [x, y, z]
-        target_position = waypoints[current_waypoint_index]
+        # PID for speed stabilization
+        speed_pid_output, speed_integral, speed_prev_error = calculate_pid(
+            target_speed - velocity, speed_integral, speed_prev_error, Kp_speed, Ki_speed, Kd_speed, timestep)
 
-        # Calculate positional errors
-        x_error = target_position[0] - gps_position[0]
-        y_error = target_position[1] - gps_position[1]
-        distance_error = (x_error**2 + y_error**2)**0.5
-
-        # PID for position control
-        pos_error = x_error  # Forward/backward correction based on x-axis
-        pos_integral += pos_error * timestep / 1000.0
-        pos_derivative = (pos_error - pos_prev_error) / (timestep / 1000.0)
-        pos_pid_output = Kp_pos * pos_error + Ki_pos * pos_integral + Kd_pos * pos_derivative
-        pos_prev_error = pos_error
-
-        # Check if waypoint is reached
-        if distance_error < 0.01:  # Threshold for reaching waypoint
-            current_waypoint_index += 1
-            if current_waypoint_index >= len(waypoints):
-                print("Trajectory complete")
-                # Stabilize at the last position
-                motor_left.setVelocity(0.0)
-                motor_right.setVelocity(0.0)
-                while robot.step(timestep) != -1:
-                    # Keep stabilizing the robot at the final position
-                    roll, pitch, yaw = imu.getRollPitchYaw()
-                    pitch_error = pitch
-                    pitch_integral += pitch_error * timestep / 1000.0
-                    pitch_derivative = (pitch_error - pitch_prev_error) / (timestep / 1000.0)
-                    pitch_pid_output = Kp_pitch * pitch_error + Ki_pitch * pitch_integral + Kd_pitch * pitch_derivative
-                    pitch_prev_error = pitch_error
-                    # Set the motor speed to stabilize at the last position
-                    motor_left.setVelocity(pitch_pid_output)
-                    motor_right.setVelocity(pitch_pid_output)
-                    #print("Final Position Stabilized",gps_position)
-                    #print(pitch_pid_output)
-                    # Optionally, add a check for user interruption here if needed
-                break  # Exit the main loop when the trajectory is completed and stabilized
+        # PID for Z rotation stabilization
+        z_rotation_error = target_z_rotation - z_rotation_rate
+        z_rotation_pid_output, z_rotation_integral, z_rotation_prev_error = calculate_pid(
+            z_rotation_error, z_rotation_integral, z_rotation_prev_error, Kp_z_rotation, Ki_z_rotation, Kd_z_rotation, timestep)
 
         # Combine outputs for motors
-        left_motor_speed = pitch_pid_output + 0.8*pos_pid_output
-        right_motor_speed = pitch_pid_output + 0.8*pos_pid_output
-        #print(pitch_pid_output)
-        #print(pos_pid_output)
+        left_motor_speed = pitch_pid_output - speed_pid_output + z_rotation_pid_output+0.07
+        right_motor_speed = pitch_pid_output - speed_pid_output - z_rotation_pid_output +0.04
+
         motor_left.setVelocity(left_motor_speed)
         motor_right.setVelocity(right_motor_speed)
 
-        #print(f"Waypoint: {current_waypoint_index}, GPS: {gps_position}, Target: {target_position}")
+if __name__ == "__main__":
+    main()

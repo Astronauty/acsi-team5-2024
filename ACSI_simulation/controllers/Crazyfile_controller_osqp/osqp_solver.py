@@ -25,7 +25,7 @@ class QuadrotorLQR():
     """
     def __init__(self, dt, verbose=True):
         
-        self.umax = 0.15 # max thrust per motor in newtons
+        self.umax = 600 # max thrust per motor in newtons
 
         params = dict()
         params['g'] = 9.81
@@ -59,14 +59,14 @@ class QuadrotorLQR():
         D = np.zeros([6,4])
 
         self.sys = signal.StateSpace(A, B, C, D)
-        self.discrete_sys = self.sys.to_discrete(dt)
+        self.discrete_sys = self.sys.to_discrete(dt)    ##########
             
         # Define LQR costs
-        Q = np.eye(N_STATES)
-        R = np.eye(N_CONTROLS)
+        Q = 1*np.eye(N_STATES)
+        R = 0.001*np.eye(N_CONTROLS)
         
         self.Qbar = np.kron(np.eye(N_MPC_HORIZON), Q)
-        self.Rbar = 100*np.kron(np.eye(N_MPC_HORIZON-1), R)
+        self.Rbar = np.kron(np.eye(N_MPC_HORIZON-1), R)
         
         # Precomputes
         self.S_hat = self.compute_S_hat(self.discrete_sys)
@@ -136,7 +136,15 @@ class QuadrotorLQR():
 
     
     def solve_linear_mpc(self, x_ref):
-        self.q = (2*self.x0.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
+        e = x_ref - self.x0
+        #print(x_ref)
+        #print(e)
+        self.q = (2*e.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
+        #print("self.T_hat\n",self.T_hat)
+        #print("self.Qbar\n",self.Qbar)
+        #print("self.S_hat\n",self.S_hat)
+        #print("self.q\n",self.q)
+        #self.prob.update(q=self.q,l=self.l,u=self.u)
         self.prob.update(q=self.q)
         res = self.prob.solve()
         
@@ -176,7 +184,7 @@ class QuadrotorLQR():
                     # print(S_hat[k*N_STATES:(k+1)*N_STATES, j*N_CONTROLS:(j+1)*N_CONTROLS].shape)
                 
         return S_hat
-    
+
     def compute_T_hat(self, discrete_state_space_sys):
         """_summary_
 
