@@ -10,7 +10,6 @@ from cflib.utils import uri_helper
 
 logging.basicConfig(level=logging.ERROR)
 
-
 class TumbllerStatePredictor:
     def __init__(self, uri, prediction_horizon_time, sampling_rate=20, verbose=False):
         self.uri = uri_helper.uri_from_env(default=uri)
@@ -24,7 +23,7 @@ class TumbllerStatePredictor:
         self.prediction_horizon_time = prediction_horizon_time
 
         # Define log configuration for translation
-        self.t_log_conf = LogConfig(name="Translation", period_in_ms=20)
+        self.t_log_conf = LogConfig(name="Translation", period_in_ms=10)
         self.t_log_conf.add_variable("stateEstimate.x", "float")
         self.t_log_conf.add_variable("stateEstimate.y", "float")
         self.t_log_conf.add_variable("stateEstimate.z", "float")
@@ -33,7 +32,7 @@ class TumbllerStatePredictor:
         self.t_log_conf.add_variable("stateEstimate.vz", "float")
 
         # Define log configuration for orientation
-        self.o_log_conf = LogConfig(name="Orientation", period_in_ms=20)
+        self.o_log_conf = LogConfig(name="Orientation", period_in_ms=10)
         self.o_log_conf.add_variable("stabilizer.roll", "float")
         self.o_log_conf.add_variable("stabilizer.pitch", "float")
         self.o_log_conf.add_variable("stabilizer.yaw", "float")
@@ -84,13 +83,15 @@ class TumbllerStatePredictor:
                 #print(f"Current state: {cur_state}")
 
                 # Show the difference between the current and future state
-                diff = np.round(cur_state - self.prev_future_state, 3)
-                #print(f"Difference: {diff}")
+                diff = np.array(cur_state - self.prev_future_state)
+                # Convert array to string with custom formatting
+                formatted_diff = np.array2string(diff, formatter={'float_kind': lambda x: f"{x:.4f}"})
+                print(f"Diff: {formatted_diff}")
 
                 self.prev_future_state = future_state
                 time.sleep(1/self.sampling_rate)
 
-                print(f"Rate: {1/(time.time()-prev_t)}")
+                #print(f"Rate: {1/(time.time()-prev_t)}")
                 prev_t = time.time()
 
             self.t_log_conf.stop()
@@ -106,8 +107,8 @@ class TumbllerStatePredictor:
         vz = data["stateEstimate.vz"]
         self.tb_state[0:6] = np.array([x, y, z, vx, vy, vz])
         trans_state = np.round(self.tb_state[0:6], 3)
-        if self.verbose:
-            print(f"State updated: {trans_state}")  # Print updated state
+        #if self.verbose:
+        #    print(f"State updated: {trans_state}")  # Print updated state
         #print(f"Translation Rate: {1/(time.time()-self.t_prev_t)}")
         #self.t_prev_t = time.time()
 
@@ -121,8 +122,8 @@ class TumbllerStatePredictor:
         rate_yaw = data["stateEstimateZ.rateYaw"]
         self.tb_state[6:12] = np.array([roll, pitch, yaw, rate_roll, rate_pitch, rate_yaw])
         orient_state = np.round(self.tb_state[6:12], 3)
-        if self.verbose:
-            print(f"Orientation state updated: {orient_state}")
+        #if self.verbose:
+        #    print(f"Orientation state updated: {orient_state}")
         #print(f"Orientation Rate: {1/(time.time()-self.o_prev_t)}")
         #self.o_prev_t = time.time()
 
@@ -140,16 +141,15 @@ class TumbllerStatePredictor:
         return np.concatenate([future_trans_pos, future_orient_pos])
 
 
-#if __name__ == "__main__":
-#    try:
-#        # Initialize drivers
-#        init_drivers()
+if __name__ == "__main__":
+    try:
+        # Initialize drivers
+        init_drivers()
 
-#        # Initialize the TumbllerStatePredictor
-#        URI = 'radio://0/20/2M/E7E7E7E702'
-#        tumbller = TumbllerStatePredictor(uri=URI, prediction_horizon_time=0.1, sampling_rate=4, verbose=False)
-#        tumbller.run()
+        # Initialize the TumbllerStatePredictor
+        URI = 'radio://0/20/2M/E7E7E7E702'
+        tumbller = TumbllerStatePredictor(uri=URI, prediction_horizon_time=0.5, sampling_rate=20, verbose=True)
+        tumbller.run()
 
-#    except KeyboardInterrupt:
-#        print("Interrupted by user.")
-
+    except KeyboardInterrupt:
+        print("Interrupted by user.")
