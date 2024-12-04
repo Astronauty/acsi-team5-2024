@@ -35,7 +35,6 @@ from cflib.utils import uri_helper
 # Only output errors from the logging framework
 logging.basicConfig(level=logging.ERROR)
 
-
 class ReadMem:
     def __init__(self, uri, output_file):
         self._event = Event()
@@ -53,7 +52,7 @@ class ReadMem:
             self._event.wait()
 
     def _geo_read_ready(self, geo_data):
-        with open(self.output_file, 'a') as file:
+        with open(self.output_file, 'w') as file:
             for id, data in geo_data.items():
                 file.write(f'---- Geometry for base station {id + 1}\n')
                 file.write(f'origin: {data.origin}\n')
@@ -62,7 +61,7 @@ class ReadMem:
         self._event.set()
 
     def _calib_read_ready(self, calib_data):
-        with open(self.output_file, 'a') as file:
+        with open(self.output_file, 'w') as file:
             for id, data in calib_data.items():
                 file.write(f'---- Calibration data for base station {id + 1}\n')
                 for sweep in data.sweeps:
@@ -76,7 +75,6 @@ class ReadMem:
 
 if __name__ == '__main__':
     # URI to the Crazyflie to connect to
-    #uri = uri_helper.uri_from_env(default='radio://0/80/2M/E7E7E7E7E7')
     uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
     # Initialize the low-level drivers

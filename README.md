@@ -1,26 +1,35 @@
 
-# Crazyflie2.1 Setup for Windows 11
+# Crazyflie2.1 Setup 
 
-This guide will walk you through setting up a Windows 11 environment to run Crazyflie2.1 examples and cfclient.
+This guide will walk you through setting up a Windows 11 environment or WSL to run Crazyflie2.1 examples and cfclient.
 
 ## Prerequisites
 - Ensure you have [Anaconda](https://www.anaconda.com/products/individual) installed, or use Python's built-in `venv` if preferred.
-
+- Python 3.10 is required for the Crazyflie client.
 ## Instructions
 
-1. **Set up a Conda virtual environment with Python 3.10**
+1. **Set up a virtual environment with Python 3.10. Choose one method or the other** 
 
+   ### Anaconda Environment
    Open Anaconda Prompt (or any terminal with conda available) and create a new environment:
    ```bash
    conda create -n crazyflie python=3.10
    conda activate crazyflie
    ```
 
+   ### Python Built-in `venv`
    Alternatively, for `venv`:
-   ```bash
-   python -m venv crazyflie_env
-   .\crazyflie_env\Scripts\activate
-   ```
+      ```bash
+      python -m venv cfvenv
+      ```
+    - Activating in Windows:
+      ```bash
+      .\cfvenv\Scripts\activate
+      ```
+    - Activating in Linux:
+      ```bash
+      call cfvenv\Scripts\activate
+        ```
 
 2. **Install the Crazyflie client**
 

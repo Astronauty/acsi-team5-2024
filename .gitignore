@@ -133,6 +133,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.idea
 
 # Spyder project settings
 .spyderproject
@@ -167,3 +168,7 @@ cython_debug/
 
 # Logging data
 *.csv
+
+# Text files
+*.txt
+examples/*.txt
