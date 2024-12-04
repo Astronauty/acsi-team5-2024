@@ -25,17 +25,19 @@ URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 # URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 stop_event = Event() 
 
 class RefuelingOrchestrator():
-    def __init__(self, URI, verbose=False):
+    def __init__(self, URI, max_scenario_time, verbose=False):
         assert URI['cf'] is not None, "CrazyFlie URI not defined"
         # assert URI['tb'] is not None, "Tumbller URI is not defined"
         
         self.URI = URI
-        self.refueling_phase = 0 # Phase 0 - Init & No Controls, 1 - Dwell, 2 - Rendesvous & Follow, 3 - Detach
+        self.max_scenario_time = max_scenario_time
+        
+        self.mode_select = 0 # Phase 0 - Init & No Controls, 1 - Dwell, 2 - Rendesvous & Follow, 3 - Detach
         
         self.cf_state = np.zeros(12)
         self.tb_state = np.zeros(12)
@@ -54,6 +56,9 @@ class RefuelingOrchestrator():
             
             self.cf_translation_log_conf, self.cf_orientation_log_conf, self.tb_translation_log_conf, self.tb_orientation_log_conf = self.initialize_log_configs()
             try:
+                self.start_time = time.time()
+                self.end_time = self.start_time + self.max_scenario_time
+                
                 self.run_cf(scfs[URI['cf']])
             # if URI['cf'] in scfs:
             #     threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
@@ -112,22 +117,42 @@ class RefuelingOrchestrator():
         self.cf_orientation_log_conf.start()
         
         logger.info(f"Started logging for {self.URI['cf']}.")
-        time.sleep(2)
 
         try:
             # Commander.send_position_setpoint(self, 0, 0, 0.2, 0)
-            print("here")
-            # scf.cf.commander.send_position_setpoint(0, 0, 0.5, 0)
-            time.sleep(5)
-            # scf.cf.commander.send_stop_setpoint()
-            # scf.cf.commander.send_notify_setpoint_stop()
+            # start = time.time()
+
+            while time.time() < self.end_time:
+                match self.mode_select:
+                    case 1:
+                        scf.cf.commander.send_position_setpoint(0, 0, 0.5, 0)
+                    case 2:
+                        scf.cf.commander.send_position_setpoint(0.25, 0, 0.5, 0)
+                    case 3: 
+                        scf.cf.commander.send_position_setpoint(-0.25, 0, 0.5, 0)
+                    case 4:
+                        scf.cf.commander.send_position_setpoint(0, 0, 0.1, 0)
+                        time.sleep(3)
+                        break
+                    case _:
+                        pass
+                    
+                time.sleep(0.1)                
+
+            scf.cf.commander.send_stop_setpoint()
+            scf.cf.commander.send_notify_setpoint_stop()
             time.sleep(0.1)
+            
         except KeyboardInterrupt:
-            logger.info(f"Keyboard interrupt detected for {scf.cf.uri}.")
+            logger.info(f"Keyboard interrupt detected for {self.URI['cf']}.")
+            scf.cf.commander.send_stop_setpoint()
+            scf.cf.commander.send_notify_setpoint_stop()
+            time.sleep(0.1)
+            
         finally:
-            self.tb_translation_log_conf.stop()
-            self.tb_orientation_log_conf.stop()
-            logger.info(f"Stopped logging for {scf.cf.uri}.")
+            self.cf_translation_log_conf.stop()
+            self.cf_orientation_log_conf.stop()
+            logger.info(f"Stopped logging for {self.URI['cf']}")
 
 
     def start_crazyflie_thread(self, scf, target):        
@@ -148,17 +173,27 @@ class RefuelingOrchestrator():
         # Define the key listener callback
         def on_press(key):
             try:
-                if key.char == '1':
-                    self.refueling_phase = 1
-                    print(f"Switching into Phase 1: Dwell")
-                elif key.char == '2':
-                    self.refueling_phase = 2
-                    print(f"Switching into Phase 2: Rendesvous & Follow")
-                elif key.char == '3':
-                    self.refueling_phase = 3
-                    print(f"Switching into Phase 3: Detach")
-            except AttributeError:
-                pass
+                k = key.char 
+            except:
+                k = key.name
+
+            match k:    
+                case '1':
+                    self.mode_select = 1
+                    print(f"\n\n Switching into Phase 1: Dwell")
+                case '2':
+                    self.mode_select = 2
+                    print(f"\n\n Switching into Phase 2: Rendesvous & Follow")
+                case '3':
+                    self.mode_select = 3
+                    print(f"\n\n Switching into Phase 3: Detach")
+                case '4':
+                    self.mode_select = 4
+                    print(f"\n\n Switching into Phase 4: Landing")
+                case _:
+                    pass
+            return None
+
 
         # Start the key listener
         with keyboard.Listener(on_press=on_press) as listener:
@@ -208,7 +243,7 @@ class RefuelingOrchestrator():
         vx = data['stateEstimate.vx']
         vy = data['stateEstimate.vy']
         vz = data['stateEstimate.vz']
-        
+        print(self.cf_state)
         self.cf_state[0:6] = np.array([x, y, z, vx, vy, vz])
     
     def cf_orientation_callback(self, timestamp, data, logconf):
@@ -240,27 +275,6 @@ class RefuelingOrchestrator():
         vyaw = data['stateEstimateZ.rateYaw']
         
         self.cf_state[6:12] = np.array([roll, pitch, yaw, vroll, vpitch, vyaw])
-        
-    def on_key_press(self, key):
-        try:
-            k = key.char 
-        except:
-            k = key.name
-
-        match k:
-            case '1':
-                self.refueling_phase = 1
-                print(f"\nSwitching into Phase 1: Dwell")
-            case '2':
-                self.refueling_phase = 2
-                print(f"\nSwitching into Phase 2: Rendesvous & Follow")
-            case '3':
-                self.refueling_phase = 3
-                print(f"\nSwitching into Phase 3: Detach")
-            case _:
-                print("\nInvalid Input")
-                
-        return None
-    
+            
 if __name__ == '__main__':
-    refueling_orchestrator = RefuelingOrchestrator(URI, verbose=False)
+    refueling_orchestrator = RefuelingOrchestrator(URI, max_scenario_time=120, verbose=False)
