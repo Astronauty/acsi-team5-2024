@@ -1,11 +1,7 @@
 import time
-import numpy as np
 
-import cflib.crtp
-from cflib.crazyflie import Crazyflie
-from cflib.crazyflie.syncCrazyflie import SyncCrazyflie
+from cflib.crtp import init_drivers
 from cflib.crazyflie.log import LogConfig
-from cflib.crazyflie.syncLogger import SyncLogger
 from cflib.crazyflie.swarm import CachedCfFactory
 from cflib.crazyflie.swarm import Swarm
 
@@ -39,13 +35,13 @@ def log_trans_callback(uri, timestamp, data, log_conf):
         tumbller_position['y'] = y
         tumbller_position['z'] = z
         rate = round(1/(time.time() - trans_t['last_time']), 2)
-        print(f" Tumbller Rate: {rate} ")
+        #print(f" Tumbller Rate: {rate} ")
         trans_t['last_time'] = time.time()
 
         # Calculate average of past 100 samples
         trans_t['avg_100_samples'].pop(0)
         trans_t['avg_100_samples'].append(rate)
-        print(f"Average Rate: {np.mean(trans_t['avg_100_samples'])}")
+        #print(f"Average Tumbller Rate: {np.mean(trans_t['avg_100_samples'])}")
 
 
     elif uri==uri_dir['crazyflie_uri']:
@@ -53,14 +49,13 @@ def log_trans_callback(uri, timestamp, data, log_conf):
         crazyflie_position['y'] = y
         crazyflie_position['z'] = z
         rate = round(1/(time.time() - trans_c['last_time']), 2)
-        print(f" Crazyflie Rate: {rate} ")
+        #print(f" Crazyflie Rate: {rate} ")
         trans_c['last_time'] = time.time()
 
         # Calculate average of past 100 samples
         trans_c['avg_100_samples'].pop(0)
         trans_c['avg_100_samples'].append(rate)
-        print(f"Average Rate: {np.mean(trans_c['avg_100_samples'])}")
-
+        #print(f"Average Crazyflie Rate: {np.mean(trans_c['avg_100_samples'])}")
 
 def log_orient_callback(uri, timestamp, data, log_conf):
     """Callback function that logs teh data and updates the global position variables with the matching uri
@@ -100,8 +95,8 @@ def log_async(scf):
     }
 
     # Define log configuration for translation
-    t_log_conf = LogConfig(name="Translation", period_in_ms=10)
-    o_log_conf = LogConfig(name="Orientation", period_in_ms=10)
+    t_log_conf = LogConfig(name="Translation", period_in_ms=20)
+    o_log_conf = LogConfig(name="Orientation", period_in_ms=20)
 
     for key in t_lg_vars:
         t_log_conf.add_variable(key, t_lg_vars[key])
@@ -127,7 +122,7 @@ def log_async(scf):
 
 if __name__ == '__main__':
 
-    cflib.crtp.init_drivers(enable_debug_driver=False)  # initialize drivers
+    init_drivers(enable_debug_driver=False)  # initialize drivers
     factory = CachedCfFactory(rw_cache='./cache')
 
     try:
@@ -139,8 +134,7 @@ if __name__ == '__main__':
                 print("Tumbller position: ", tumbller_position)
                 print("Crazyflie position: ", crazyflie_position)
 
-
-                #var = input("insert command:\n")
+                # Do other processes here while the callback functions update the position of the tumbller and crazyflie!
 
     except KeyboardInterrupt:
         print("Interrupted by user.")
