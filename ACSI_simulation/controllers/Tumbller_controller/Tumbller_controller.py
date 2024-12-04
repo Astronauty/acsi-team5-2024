@@ -1,5 +1,5 @@
 from controller import Robot, Gyro, InertialUnit, GPS, Keyboard
-
+import time
 def initialize_devices(robot, timestep):
     """Initialize and enable sensors and motors."""
     motor_left = robot.getDevice('motor_left')
@@ -47,21 +47,21 @@ def main():
 
     # PID parameters for speed stabilization
     Kp_speed = 15#10.0
-    Ki_speed = Kp_speed / 200.0
+    Ki_speed = 0.1#0.075
     Kd_speed = 0.0
     speed_integral = 0.0
     speed_prev_error = 0.0
 
     # PID parameters for Z rotation control
-    Kp_z_rotation = 0.1
+    Kp_z_rotation = 2.5
     Ki_z_rotation = 0.0
     Kd_z_rotation = 0.0
     z_rotation_integral = 0.0
     z_rotation_prev_error = 0.0
 
     # Target values
-    target_speed = 0.0
-    target_z_rotation = 0.0  # Maintain zero angular velocity around Z-axis
+    target_speed = 0.1#0.003
+    target_z_rotation = 0.02#0.002  # Maintain zero angular velocity around Z-axis
 
     # Speed and rotation increments for keyboard control
     speed_increment = 0.05
@@ -93,6 +93,7 @@ def main():
             pass  # Maintain the current targets
 
         # PID for pitch stabilization
+        #print(velocity)
         pitch_pid_output, pitch_integral, pitch_prev_error = calculate_pid(
             pitch, pitch_integral, pitch_prev_error, Kp_pitch, Ki_pitch, Kd_pitch, timestep)
 
@@ -106,8 +107,8 @@ def main():
             z_rotation_error, z_rotation_integral, z_rotation_prev_error, Kp_z_rotation, Ki_z_rotation, Kd_z_rotation, timestep)
 
         # Combine outputs for motors
-        left_motor_speed = pitch_pid_output - speed_pid_output + z_rotation_pid_output+0.07
-        right_motor_speed = pitch_pid_output - speed_pid_output - z_rotation_pid_output +0.04
+        left_motor_speed = pitch_pid_output - 6*speed_pid_output + z_rotation_pid_output#+0.07
+        right_motor_speed = pitch_pid_output - 6*speed_pid_output - z_rotation_pid_output #+0.04
 
         motor_left.setVelocity(left_motor_speed)
         motor_right.setVelocity(right_motor_speed)
