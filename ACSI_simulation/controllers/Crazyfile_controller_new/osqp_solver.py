@@ -65,7 +65,8 @@ class QuadrotorLQR():
             
         # Define LQR costs
         #Q = np.eye(N_STATES) #x,y,z,vx,vy,vz,roll,pitch,yaw,vroll,vpitch,vyaw
-        Q_1 = 100*np.array([100,100,100,1,1,1,0.0001,0.0001,1000000000000000,0.0001,0.0001,10000000]) # x,x_dot,theta,theta_dot
+        #Q_1 = 1*np.array([1,1,1,0,0,0,0,0,0,0,0,0])
+        Q_1 = 1*np.array([60,60,1,0.01,0.01,0.01,0.0001,0.0001,0.0001,0.0001,0.0001,0.0001])
         Q = np.diag(Q_1)
         R = np.eye(N_CONTROLS)
         
@@ -237,4 +238,3 @@ class QuadrotorLQR():
 
 def quadrotor_lqr_cost(x, u, Q, R):
     return x @ Q @ x + u @ R @ u
-

@@ -248,10 +248,20 @@ if __name__ == '__main__':
 
 
         motor_power = res.x*1
-        m1 = motor_power[0]
-        m2 = motor_power[1]
-        m3 = motor_power[2]
-        m4 = motor_power[3]
+        f1 = -motor_power[0]
+        f2 = -motor_power[1]
+        f3 = -motor_power[2]
+        f4 = -motor_power[3]
+
+        #different quad drone def from crazyfile and on (https://arxiv.org/pdf/1908.07401)
+        roll_cmd = -(f2-f4)
+        pitch_cmd = -(f1-f3)
+        yaw_cmd = -(-f1+f2-f3+f4)
+        alt_cmd = -(f1+f2+f3+f4)/4
+        m1 = alt_cmd - roll_cmd + pitch_cmd + yaw_cmd
+        m2 = alt_cmd - roll_cmd - pitch_cmd - yaw_cmd
+        m3 = alt_cmd + roll_cmd - pitch_cmd + yaw_cmd
+        m4 = alt_cmd + roll_cmd + pitch_cmd - yaw_cmd
 
         #camera_data = camera.getImage()
 
