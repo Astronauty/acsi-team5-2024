@@ -8,7 +8,7 @@ WorldInfo {
 }
 Viewpoint {
   orientation -0.07438669086221024 -0.8630227744999952 0.4996581940856173 5.462033809886402
-  position -1.5122970434330925 1.5891697136290164 1.5638259039897504
+  position -2.6981911796281812 1.7559282492167703 2.3534190746971295
 }
 TexturedBackground {
 }
@@ -189,6 +189,8 @@ Crazyflie {
         ]
         boundingObject USE magnet
         physics Physics {
+          density -1
+          mass 0.001
           damping Damping {
             linear 0.1
             angular 0.5
