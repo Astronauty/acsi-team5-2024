@@ -65,7 +65,7 @@ class QuadrotorLQR():
             
         # Define LQR costs
         #Q = np.eye(N_STATES) #x,y,z,vx,vy,vz,roll,pitch,yaw,vroll,vpitch,vyaw
-        Q_1 = 100*np.array([1,1,1,1,1,1,1,1,1,1,1,1]) # x,x_dot,theta,theta_dot
+        Q_1 = 100*np.array([100,100,100,1,1,1,0.0001,0.0001,1000000000000000,0.0001,0.0001,10000000]) # x,x_dot,theta,theta_dot
         Q = np.diag(Q_1)
         R = np.eye(N_CONTROLS)
         
@@ -146,7 +146,7 @@ class QuadrotorLQR():
     def solve_linear_mpc(self, x_ref):
         e = x_ref - self.x0
         #e[np.abs(e) < 0.0000001] = 0
-        #print("e",e)
+        print("e",e)
         self.q = (2*e.T @ self.T_hat.T @ self.Qbar @ self.S_hat).T # Recompute linear cost term at each timestep
         self.prob.update(q=self.q)
         res = self.prob.solve()
