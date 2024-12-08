@@ -23,6 +23,7 @@
 Example of how to read the Lighthouse base station geometry and
 calibration memory from a Crazyflie
 """
+import time
 import logging
 from threading import Event
 
@@ -45,6 +46,7 @@ class ReadMem:
 
             helper.read_all_geos(self._geo_read_ready)
             self._event.wait()
+            time.sleep(1)
 
             self._event.clear()
 
@@ -52,6 +54,7 @@ class ReadMem:
             self._event.wait()
 
     def _geo_read_ready(self, geo_data):
+        # Create a new file and write the geometry data to it
         with open(self.output_file, 'w') as file:
             for id, data in geo_data.items():
                 file.write(f'---- Geometry for base station {id + 1}\n')
@@ -61,7 +64,8 @@ class ReadMem:
         self._event.set()
 
     def _calib_read_ready(self, calib_data):
-        with open(self.output_file, 'w') as file:
+        # Append the calibration data to the file
+        with open(self.output_file, 'a') as file:
             for id, data in calib_data.items():
                 file.write(f'---- Calibration data for base station {id + 1}\n')
                 for sweep in data.sweeps:
