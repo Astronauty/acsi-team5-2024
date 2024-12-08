@@ -92,8 +92,8 @@ def main():
     z_rotation_prev_error = 0.0
 
     # Target values
-    target_speed = 0.0#0.1
-    target_z_rotation =0.0#0.02  # Maintain zero angular velocity around Z-axis
+    target_speed = 0.02#0.001#0.1
+    target_z_rotation = 0.0#0.005#0.02  # Maintain zero angular velocity around Z-axis
 
     # Speed and rotation increments for keyboard control
     speed_increment = 0.05

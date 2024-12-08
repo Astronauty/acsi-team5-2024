@@ -8,7 +8,7 @@ WorldInfo {
 }
 Viewpoint {
   orientation -0.07438669086221024 -0.8630227744999952 0.4996581940856173 5.462033809886402
-  position -2.6981911796281812 1.7559282492167703 2.3534190746971295
+  position -2.7589948645053903 1.5814694065918802 2.7861840474681996
 }
 TexturedBackground {
 }
@@ -143,7 +143,7 @@ DEF Tumbller Robot {
   controller "Tumbller_controller"
 }
 Crazyflie {
-  translation 0 1 0.0149836
+  translation 0 -1 0.0149836
   rotation -1.8781151261327918e-05 2.815246760035539e-05 -0.9999999994273535 2.4062923887863482e-05
   controller "Crazyfile_controller_new"
   supervisor TRUE
