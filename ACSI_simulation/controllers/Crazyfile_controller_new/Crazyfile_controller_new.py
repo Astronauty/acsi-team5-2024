@@ -65,6 +65,33 @@ def process_received_data(receiver):
         return state
     return None  # No data received
 
+def calculate_f(U1, U2, U3, U4):
+    mg = 55.368#55.9
+    d = 0.006#0.003183#0.009 #meters
+    c = 0.1#0.009 #don't know
+
+    # Coefficient matrix
+    #A = np.array([
+    #    [1, 1, 1, 1],
+    #    [0, 1, 0, -1],
+    #    [1, 0, -1, 0],
+    #    [-1, 1, -1, 1]
+    #])
+    A = np.array([
+        [1, 1, 1, 1],
+        [-1, -1, 1, 1],
+        [-1, 1, 1, -1],
+        [1, -1, 1, -1]
+    ])
+    
+    # Right-hand side vector
+    U = np.array([U1+mg, U2/d, U3/d, U4/c])
+    
+    # Solve the system of linear equations
+    f = np.linalg.solve(A, U)
+    
+    # Return the values of f1, f2, f3, f4
+    return f
 
 if __name__ == '__main__':
 
@@ -156,25 +183,13 @@ if __name__ == '__main__':
             past_z_global = gps.getValues()[2]
             past_time = robot.getTime()
             first_time = False
-        
-        """
-        # Get sensor data
-        roll = imu.getRollPitchYaw()[0]
-        pitch = imu.getRollPitchYaw()[1]
-        yaw = imu.getRollPitchYaw()[2]
-        yaw_rate = gyro.getValues()[2]
-        x_global = gps.getValues()[0]
-        v_x_global = (x_global - past_x_global)/dt
-        y_global = gps.getValues()[1]
-        v_y_global = (y_global - past_y_global)/dt
-        altitude = gps.getValues()[2]
-        """
 
         # Get sensor data
         roll,pitch,yaw = imu.getRollPitchYaw()
         roll_rate,pitch_rate,yaw_rate = gyro.getValues()
         x_global,y_global,z_global = gps.getValues()
         v_x_global,v_y_global,v_z_global = gps.getSpeedVector()
+        yaw1 = yaw+135/180*math.pi
 
         # Get body fixed velocities
         cos_yaw = cos(yaw)
@@ -223,9 +238,6 @@ if __name__ == '__main__':
         OSQP_crazyfile.update_x0(x_global,y_global,z_global,v_x_global,v_y_global,v_z_global, roll,pitch,yaw,roll_rate,pitch_rate,yaw_rate)
 
         desired_state = np.zeros((12,1))
-        #desired_state[0] = 1
-        #desired_state[1] = 1
-        #desired_state[2] = 0
         #print(desired_state)
         #receive T state
         T_state = process_received_data(receiver)
@@ -241,49 +253,32 @@ if __name__ == '__main__':
         else:
             print("didn't received T states",desired_state)
         
-        desired_state[2] += 0.4
+        ##########################################
+        #test code for pure MPC takeoff
+        
+        #desired_state = np.zeros((12,1))
+        #desired_state[0] = 0
+        #desired_state[1] = -1.0
+        #desired_state[2] = FLYING_ATTITUDE#1
+        #desired_state[8] = 0 #+= 135/180*math.pi
+
+        
+        ##########################################
+        desired_state[2] += 0.35
         #print(desired_state)
 
         res = OSQP_crazyfile.solve_linear_mpc(desired_state)
 
 
         motor_power = res.x*1
-        f1 = -motor_power[0]
-        f2 = -motor_power[1]
-        f3 = -motor_power[2]
-        f4 = -motor_power[3]
+        U1 = motor_power[0]*1E1
+        U2 = motor_power[1]*1E1
+        U3 = motor_power[2]*1E1
+        U4 = motor_power[3]*1E1
 
-        #different quad drone def from crazyfile and on (https://arxiv.org/pdf/1908.07401)
-        roll_cmd = -(f2-f4)
-        pitch_cmd = -(f1-f3)
-        yaw_cmd = -(-f1+f2-f3+f4)
-        alt_cmd = -(f1+f2+f3+f4)/4
-        m1 = alt_cmd - roll_cmd + pitch_cmd + yaw_cmd
-        m2 = alt_cmd - roll_cmd - pitch_cmd - yaw_cmd
-        m3 = alt_cmd + roll_cmd - pitch_cmd + yaw_cmd
-        m4 = alt_cmd + roll_cmd + pitch_cmd - yaw_cmd
 
-        #camera_data = camera.getImage()
-
-        # get range in meters
-        #range_front_value = range_front.getValue() / 1000
-        #range_right_value = range_right.getValue() / 1000
-        #range_left_value = range_left.getValue() / 1000
-
-        # Choose a wall following direction
-        # if you choose direction left, use the right range value
-        # if you choose direction right, use the left range value
-        #direction = WallFollowing.WallFollowingDirection.LEFT
-        #range_side_value = range_right_value
-
-        # Get the velocity commands from the wall following state machine
-        #cmd_vel_x, cmd_vel_y, cmd_ang_w, state_wf = wall_following.wall_follower(
-        #    range_front_value, range_side_value, yaw, direction, robot.getTime())
-
-        #if autonomous_mode:
-        #    sideways_desired = cmd_vel_y
-        #    forward_desired = cmd_vel_x
-        #    yaw_desired = cmd_ang_w
+        f=calculate_f(U1,U2,U3,U4)
+        #print("f",f)
 
         # PID velocity controller with fixed height
         motor_power = PID_crazyflie.pid(dt, forward_desired, sideways_desired,
@@ -291,17 +286,37 @@ if __name__ == '__main__':
                                         roll, pitch, yaw_rate,
                                         z_global, v_x, v_y)
         #print(motor_power)
+        
         if past_time <= 5:
             m1_motor.setVelocity(-motor_power[0])
             m2_motor.setVelocity(motor_power[1])
             m3_motor.setVelocity(-motor_power[2])
             m4_motor.setVelocity(motor_power[3])
+            print("g speeds",[-motor_power[0],motor_power[1],-motor_power[2],motor_power[3]])
         else:
             print("start MPC")
-            m1_motor.setVelocity(-motor_power[0]-m1)
-            m2_motor.setVelocity(motor_power[1]+m2)
-            m3_motor.setVelocity(-motor_power[2]-m3)
-            m4_motor.setVelocity(motor_power[3]+m4)
+            scale = 0.4
+            m1_motor.setVelocity(-motor_power[0]-f[0]*scale)
+            m2_motor.setVelocity(motor_power[1]+f[1]*scale)
+            m3_motor.setVelocity(-motor_power[2]-f[2]*scale)
+            m4_motor.setVelocity(motor_power[3]+f[3]*scale)
+            #scale = 4
+            #m1_motor.setVelocity(-f[0]*scale)
+            #m2_motor.setVelocity(f[1]*scale)
+            #m3_motor.setVelocity(-f[2]*scale)
+            #m4_motor.setVelocity(f[3]*scale)
+            print([f[0]*scale,f[1]*scale,f[2]*scale,f[3]*scale])
+            print("PID",[-motor_power[0],motor_power[1],-motor_power[2],motor_power[3]])
+            
+            #scale = 50
+        """
+        scale = 4
+        m1_motor.setVelocity(-f[0]*scale)
+        m2_motor.setVelocity(f[1]*scale)
+        m3_motor.setVelocity(-f[2]*scale)
+        m4_motor.setVelocity(f[3]*scale)
+        print([f[0]*scale,f[1]*scale,f[2]*scale,f[3]*scale])
+        """
 
         past_time = robot.getTime()
         past_x_global = x_global
