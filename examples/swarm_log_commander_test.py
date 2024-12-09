@@ -261,20 +261,55 @@ def takeoff(scf, params):
     if params['enable']:
         uri = scf.cf.link_uri
         print(f"{uri} taking off")
-        z_values = np.linspace(0, 1.6, 50)
+        z_values = np.linspace(0, 1.1, 50)
         for z in z_values:
-            scf.cf.commander.send_position_setpoint(0, 0, z, 0)
+            if not simulate:
+                scf.cf.commander.send_position_setpoint(0, 0, z, 0)
+
+            with open('ref_pos_data.txt', 'a') as f:
+                f.write(f'{0.0},{0.0},{z}\n')
+
+            [x, y, z] = devices['tumbller'].get_position()
+            with open('measured_pos_data.txt', 'a') as f:
+                f.write(f'{x},{y},{z}\n')
             time.sleep(0.1)
 
     print("Exiting takeoff function")
+
+def hover(scf, params):
+    if params['hover']:
+        print("hovering")
+        z_values = np.linspace(1.1, 1.1, 30)
+        for z in z_values:
+            if not simulate:
+                scf.cf.commander.send_position_setpoint(0, 0, z, 0)
+
+            with open('ref_pos_data.txt', 'a') as f:
+                f.write(f'{0.0},{0.0},{z}\n')
+
+            [x, y, z] = devices['tumbller'].get_position()
+            with open('measured_pos_data.txt', 'a') as f:
+                f.write(f'{x},{y},{z}\n')
+
+            time.sleep(0.05)
+    print("Exiting hover function")
 
 # Function to land the crazyflie
 def land(scf, params):
     if params['land']:
         print("Landing")
-        z_values = np.linspace(1.6, 0, 50)
+        z_values = np.linspace(1.1, 0, 50)
         for z in z_values:
-            scf.cf.commander.send_position_setpoint(0, 0, z, 0)
+            if not simulate:
+                scf.cf.commander.send_position_setpoint(0, 0, z, 0)
+
+            with open('ref_pos_data.txt', 'a') as f:
+                f.write(f'{0.0},{0.0},{z}\n')
+
+            [x, y, z] = devices['tumbller'].get_position()
+            with open('measured_pos_data.txt', 'a') as f:
+                f.write(f'{x},{y},{z}\n')
+
             time.sleep(0.1)
     print("Exiting land function")
 
@@ -297,49 +332,65 @@ uris = [
 ]
 
 
+simulate = False
 
 if __name__ == '__main__':
 
     init_drivers(enable_debug_driver=False)  # initialize drivers
     factory = CachedCfFactory(rw_cache='./cache') # For reducing connection time
 
-    try:
-        with Swarm(uris, factory=factory) as swarm:
+    # Create new text file called pos_data.txt
+    with open(f'measured_pos_data.txt', 'w') as f:
+        f.write('x,y,z\n')
+    with open(f'ref_pos_data.txt', 'w') as f:
+        f.write('x,y,z\n')
+
+    with Swarm(uris, factory=factory) as swarm:
+        try:
             # Set up the logging configurations for the crazyflie devices
             swarm.parallel_safe(setup_async_logging)
-            #swarm.parallel_safe(reset_estimator)
+            swarm.parallel_safe(reset_estimator)
 
             # We will pass in our 'param' dictionary to contain our arbitrary parameters. In this case, the "takeoff"
             # function is looking for the 'enable' key and if it is set to True, it will takeoff. The key has to be the
             # URI value, and the value is another dictionary with the key 'enable' and the value
-            #params = {devices['tumbller'].uri: [{'enable': True}],
-            #          devices['crazyflie'].uri: [{'enable': False}]}
-            #swarm.parallel_safe(takeoff, args_dict=params) # Executes the function
+            params = {devices['tumbller'].uri: [{'enable': True}],
+                      devices['crazyflie'].uri: [{'enable': False}]}
+            swarm.parallel_safe(takeoff, args_dict=params) # Executes the function
             #swarm.parallel(takeoff, args_dict=params) # Executes the function
 
             # Configuration should be done at this point.
-            while True:
 
-                # Sample the current position of the crazyflie
-                [x, y, z] = devices['tumbller'].get_position()
+            #while True:
+
+                ## Sample the current position of the crazyflie
+                #[x, y, z] = devices['tumbller'].get_position()
+                #with open('pos_data.txt', 'a') as f:
+                #    f.write(f'{x},{y},{z}\n')
 
                 # If it reaches its height, exit out of the loop and land the crazyflie
-                if z >= 1.6:
-                    break
-                else:
-                    print(f'Height: {z}')
+                #if z >= 1.0:
+                #    break
+                #else:
+                #    print(f'Height: {z}')
 
-                time.sleep(0.05)
+                #time.sleep(0.05)
 
+            params = {devices['tumbller'].uri: [{'hover': True}],
+                      devices['crazyflie'].uri: [{'hover': False}]}
+            swarm.parallel_safe(hover, args_dict=params)  # Executes the function
             print("Landing...")
             # Set up the parameters so the crazyflie is the only one doing the landing sequence. The "land" funtion only
             # looks for the 'land' key, and if it is set to True, it will land
-            #params = {devices['tumbller'].uri: [{'land': True}],
-            #          devices['crazyflie'].uri: [{'land': False}]}
-            #swarm.parallel_safe(land, args_dict=params)
+            params = {devices['tumbller'].uri: [{'land': True}],
+                      devices['crazyflie'].uri: [{'land': False}]}
+            swarm.parallel_safe(land, args_dict=params)
             #swarm.parallel(land, args_dict=params)
+
+        except KeyboardInterrupt:
+            print("Interrupted by user.")
+        finally:
+            swarm.parallel_safe(stop_all)
             print("Done")
 
-    except KeyboardInterrupt:
-        print("Interrupted by user.")
 
