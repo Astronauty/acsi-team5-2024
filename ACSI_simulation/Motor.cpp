@@ -78,6 +78,7 @@ void Motor::Left(int speed)
   analogWrite(PWMB_RIGHT, 0);
 }
 
+
 void Motor::Right(int speed)
 {
   digitalWrite(AIN1, 1);
