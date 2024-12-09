@@ -61,7 +61,7 @@ class ReadMem:
         self._event.set()
 
     def _calib_read_ready(self, calib_data):
-        with open(self.output_file, 'w') as file:
+        with open(self.output_file, 'a') as file:
             for id, data in calib_data.items():
                 file.write(f'---- Calibration data for base station {id + 1}\n')
                 for sweep in data.sweeps:

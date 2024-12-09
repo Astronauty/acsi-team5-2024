@@ -24,6 +24,11 @@ URI = dict()
 URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 URI['tb'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
+control_args = {
+    URI['cf']: (True,),
+    URI['tb']: (False,),
+}
+
 
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -35,7 +40,7 @@ class RefuelingOrchestrator():
         assert URI['tb'] is not None, "Tumbller URI is not defined"
         
         ## Params
-        self.tether_length = 0.2
+        self.tether_length = 0.15
         
         self.URI = URI
         self.max_scenario_time = max_scenario_time
@@ -58,37 +63,49 @@ class RefuelingOrchestrator():
 
         with Swarm(list(URI.values())) as swarm:
             scfs = swarm._cfs # Crazyflie instances
+            # swarm.reset_estimators()
             
             self.cf_translation_log_conf, self.cf_orientation_log_conf, self.tb_translation_log_conf, self.tb_orientation_log_conf = self.initialize_log_configs()
-            try:
-                self.start_time = time.time()
-                self.end_time = self.start_time + self.max_scenario_time
-                
-                # self.run_cf(scfs[URI['cf']])
-                # self.run_tb(scfs[URI['tb']])
-                if URI['cf'] in scfs:
-                    threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
-                    print("Successfully started cf thread.")
-            # if URI['tb'] in scfs:
-            #     threads.append(self.start_crazyflie_thread(scfs[URI['tb']], self.run_tb))
-            #     print("Successfully started tb thread.")
+            
+            self.start_time = time.time()
+            self.end_time = self.start_time + self.max_scenario_time
+            
+            swarm.parallel_safe(self.run, args_dict = control_args)
+            s
+            # try:
+            #     # self.run_cf(scfs[URI['cf']])
+            #     # self.run_tb(scfs[URI['tb']])
+            #     if URI['cf'] in scfs:
+            #         threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
+            #         print("Successfully started cf thread.")
+            # # if URI['tb'] in scfs:
+            # #     threads.append(self.start_crazyflie_thread(scfs[URI['tb']], self.run_tb))
+            # #     print("Successfully started tb thread.")
 
 
-                # Wait for all threads to finish
-                for thread in threads:
-                    thread.join()
-                    #thread.join(timeout=5)
-                    if thread.is_alive():
-                        logger.info("Thread did not finish in time (5 seconds).")
-            except KeyboardInterrupt:
-                logger.info("Keyboard interrupt detected. Stopping threads")
-                stop_event.set()  # Signal all threads to stop
+            #     # Wait for all threads to finish
+            #     for thread in threads:
+            #         thread.join()
+            #         #thread.join(timeout=5)
+            #         if thread.is_alive():
+            #             logger.info("Thread did not finish in time (5 seconds).")
+            # except KeyboardInterrupt:
+            #     logger.info("Keyboard interrupt detected. Stopping threads")
+            #     stop_event.set()  # Signal all threads to stop
         
         
         
         
         return None
      
+    def run(self, scf, control):
+        if control:
+            self.run_cf(scf)
+        else:
+            self.run_tb(scf)
+            
+        return None
+                
     def run_tb(self, scf):
         # Add log configs and callbacks to the tb instance
         scf.cf.log.add_config(self.tb_translation_log_conf)
@@ -133,20 +150,25 @@ class RefuelingOrchestrator():
             # start = time.time()
 
             while time.time() < self.end_time:
+                print(self.tb_state[0:3])
                 match self.mode_select:
                     case 1:
-                        scf.cf.commander.send_position_setpoint(0, 0, 0.5, 0)
+                        scf.cf.commander.send_position_setpoint(0, 0, 1.0, 0)
                         
                     case 2:
                         # update the cf_reference to be the position of the tb plus tether length
-                        self.cf_reference_pos = self.tb_state[0:3] + np.array([0, 0, self.tether_length])
+                        self.cf_reference_pos = self.tb_state[0:3] + np.array([0, 0, self.tether_length + 0.15])
                         x_ref = self.cf_reference_pos[0]
                         y_ref =  self.cf_reference_pos[1]
                         z_ref =  self.cf_reference_pos[2]
                         scf.cf.commander.send_position_setpoint(x_ref, y_ref, z_ref, 0)
                         
                     case 3: 
-                        scf.cf.commander.send_position_setpoint(-0.25, 0, 0.5, 0)
+                        self.cf_reference_pos = self.tb_state[0:3] + np.array([0, 0, self.tether_length])
+                        x_ref = self.cf_reference_pos[0]
+                        y_ref =  self.cf_reference_pos[1]
+                        z_ref =  self.cf_reference_pos[2]
+                        scf.cf.commander.send_position_setpoint(x_ref, y_ref, z_ref, 0)
                         
                     case 4:
                         scf.cf.commander.send_position_setpoint(0, 0, 0.1, 0)
@@ -155,6 +177,8 @@ class RefuelingOrchestrator():
                     
                     case _:
                         pass
+                    
+                self.prev_mode = self.mode_select
                     
                 time.sleep(0.1)                
 
@@ -276,7 +300,6 @@ class RefuelingOrchestrator():
         self.cf_state[6:12] = np.array([roll, pitch, yaw, vroll, vpitch, vyaw])
         
     def tb_translation_callback(self, timestamp, data, logconf):
-        print('hello tb')
         x = data['stateEstimate.x']
         y = data['stateEstimate.y']
         z = data['stateEstimate.z']

@@ -7,3 +7,6 @@
 [submodule "_thirdparty/tinympc-crazyflie-firmware"]
 	path = _thirdparty/tinympc-crazyflie-firmware
 	url = git@github.com:RoboticExplorationLab/tinympc-crazyflie-firmware.git
+[submodule "_thirdparty/crazyswarm"]
+	path = _thirdparty/crazyswarm
+	url = git@github.com:sschoedel/crazyswarm.git
