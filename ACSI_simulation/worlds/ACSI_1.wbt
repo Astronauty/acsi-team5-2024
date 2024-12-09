@@ -7,16 +7,18 @@ EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/project
 WorldInfo {
 }
 Viewpoint {
-  orientation 0.015195971989103153 -0.06713196795767291 0.9976283783621216 4.700726441283036
-  position -0.920138772915525 1.5329059429302696 0.29413677556755397
+  orientation -0.07438669086221024 -0.8630227744999952 0.4996581940856173 5.462033809886402
+  position -2.7589948645053903 1.5814694065918802 2.7861840474681996
 }
 TexturedBackground {
 }
 Floor {
 }
 DEF Tumbller Robot {
-  translation -1.0070143779668839 0.00010010967277959863 0.09952727152895462
+  translation 0 0 0.0995273
   children [
+    Emitter {
+    }
     Accelerometer {
     }
     Connector {
@@ -141,12 +143,14 @@ DEF Tumbller Robot {
   controller "Tumbller_controller"
 }
 Crazyflie {
-  hidden linearVelocity_0 8.028132216946013e-11 -5.294861533063208e-11 8.25664720323731e-06
-  hidden angularVelocity_0 3.529914913616244e-09 -5.2914558283776905e-09 -8.073543737458715e-17
-  translation 0.4999999802249596 -1.6776664725249606e-09 0.014983623438232455
+  translation 0 -1 0.0149836
   rotation -1.8781151261327918e-05 2.815246760035539e-05 -0.9999999994273535 2.4062923887863482e-05
-  controller "Crazyfile_controller"
+  controller "Crazyfile_controller_new"
+  supervisor TRUE
   extensionSlot [
+    Receiver {
+      channel 1
+    }
     BallJoint {
       jointParameters BallJointParameters {
         position 2.4061808228136695e-05
@@ -159,8 +163,8 @@ Crazyflie {
         axis 0 1 0
       }
       endPoint Solid {
-        translation -0.24999990695446245 -6.014028414227934e-06 0.0025164959456277884
-        rotation -4.865089813929559e-06 0.9394986566161154 0.34255258602562827 7.02260536094347e-05
+        translation -0.24999990695446245 -6.014028413867112e-06 0.0025164959456275213
+        rotation -4.8650743119788125e-06 0.939498656615786 0.34255258602653177 7.022602199087669e-05
         children [
           Connector {
             rotation 0 1 0 1.5707996938995747
@@ -185,6 +189,8 @@ Crazyflie {
         ]
         boundingObject USE magnet
         physics Physics {
+          density -1
+          mass 0.001
           damping Damping {
             linear 0.1
             angular 0.5
