@@ -10,3 +10,6 @@
 [submodule "_thirdparty/crazyswarm"]
 	path = _thirdparty/crazyswarm
 	url = git@github.com:sschoedel/crazyswarm.git
+[submodule "_thirdparty/tinympc-python"]
+	path = _thirdparty/tinympc-python
+	url = git@github.com:TinyMPC/tinympc-python.git

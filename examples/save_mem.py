@@ -64,10 +64,7 @@ class ReadMem:
         self._event.set()
 
     def _calib_read_ready(self, calib_data):
-<<<<<<< HEAD
-=======
         # Append the calibration data to the file
->>>>>>> 484aa536ae1e0b0d2ac5099161ca894901e03605
         with open(self.output_file, 'a') as file:
             for id, data in calib_data.items():
                 file.write(f'---- Calibration data for base station {id + 1}\n')
