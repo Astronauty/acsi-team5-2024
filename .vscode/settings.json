@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "__availability": "c",
+        "__hash_table": "c",
+        "string": "c",
+        "*.inc": "c"
+    }
+}
