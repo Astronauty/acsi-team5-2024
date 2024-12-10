@@ -3,6 +3,8 @@
         "__availability": "c",
         "__hash_table": "c",
         "string": "c",
-        "*.inc": "c"
+        "*.inc": "c",
+        "controller_pid.h": "c",
+        "tinympc.h": "c"
     }
 }
