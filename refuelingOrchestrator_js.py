@@ -11,42 +11,38 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crtp import init_drivers
 from cflib.crazyflie.swarm import Swarm, CachedCfFactory
 
-
 logging.basicConfig(level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 stop_event = Event()
 
 class RefuelingOrchestrator():
-    def __init__(self, URI, max_scenario_time, simulate=False, verbose=False):
+    def __init__(self, URI, max_scenario_time, tether_length=0.2, log_pos=False, log_rate=20, simulate=False, verbose=False):
         # Check if URIs are defined
         if 'tb' not in URI:
             logger.error("Warning: CrazyFlie tumbller URI not defined")
-        #assert URI['cf'] is not None, "CrazyFlie URI not defined"
-        #assert URI['tb'] is not None, "Tumbller URI is not defined"
 
         ## Params
-        self.tether_length = 0.2
-        self.rotate_mode = False
         self.URI = URI
         self.max_scenario_time = max_scenario_time
+        self.tether_length = tether_length
+        self.log_pos = log_pos
+        self.log_rate = log_rate
         self.simulate = simulate
         self.verbose = verbose
-
-        # Create the position log file
-        data = "time, x, y, z, vx, vy, vz, roll, pitch, yaw, roll_rate, pitch_rate, yaw_rate"
-        self.write_to_pos_log('cf_pos_log.txt', data, new_file=True)
-
         self.mode_select = 0  # Phase 0 - Init & No Controls, 1 - Dwell, 2 - Rendesvous & Follow, 3 - Detach
-
+        self.new_state = False
         self.cf_state = np.zeros(12)
         self.tb_state = np.zeros(12)
         self.cf_reference_pos = np.zeros(12)
 
-        threads = []
+        # Create the position and reference log file
+        data = "time, x, y, z, vx, vy, vz, roll, pitch, yaw, roll_rate, pitch_rate, yaw_rate"
+        self.write_to_pos_log('cf_pos_log.txt', data, new_file=True)
+        self.write_to_pos_log('cf_ref_log.txt', data, new_file=True)
 
-        #cflib.crtp.init_drivers()
-        init_drivers(enable_debug_driver=False)  # initialize drivers
-        factory = CachedCfFactory(rw_cache='./cache')  # For reducing connection time
+        # initialize drivers and factory for reducing connection time
+        init_drivers(enable_debug_driver=False)
+        factory = CachedCfFactory(rw_cache='./cache')
 
         # Initialize key listener in separate thread
         listener_thread = Thread(target=self.start_key_listener)
@@ -61,6 +57,7 @@ class RefuelingOrchestrator():
                 self.start_time = time.time()
                 self.end_time = self.start_time + self.max_scenario_time
 
+                threads = []
                 if URI['cf'] in scfs:
                     threads.append(self.start_crazyflie_thread(scfs[URI['cf']], self.run_cf))
                     print("Successfully started cf thread.")
@@ -75,36 +72,30 @@ class RefuelingOrchestrator():
             except KeyboardInterrupt:
                 logger.info("Keyboard interrupt detected. Stopping threads")
                 stop_event.set()  # Signal all threads to stop
-
             finally:
-                swarm.parallel_safe(self.stop_all)
+                # Extra call in case the threads don't call stop_scf() ...
+                swarm.parallel_safe(self.stop_scf)
 
     def move_drone(self, scf, x, y, z, yaw):
         if not self.simulate:
             if self.verbose:
                 print(f"Setting drone to position: {x}, {y}, {z}, {yaw}")
             scf.cf.commander.send_position_setpoint(x, y, z, yaw)
-
-    def write_to_event_log(self, event):
-        # Helper function to write to event log
-        if self.log_events:
-            if os.path.exists('event_log.txt'):
-                with open('event_log.txt', 'a') as f:
-                    f.write(f"{event}\n")
-            else:
-                with open('event_log.txt', 'w') as f:
-                    f.write(f"{event}\n")
+        timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
+        data = [timestamp] + [x, y, z, 0, 0, 0, 0, 0, yaw, 0, 0, 0]  # Fill in the data
+        self.write_to_pos_log('cf_ref_log.txt', data)
 
     def write_to_pos_log(self, filename, data, new_file=False):
         # Helper function to write data to the passed filename
-        if not os.path.exists(filename) or new_file:
-            with open(filename, 'w') as f:
-                f.write(f"{data}\n")
-        else:
-            with open(filename, 'a') as f:
-                f.write(f"{data}\n")
+        if self.log_pos:
+            if not os.path.exists(filename) or new_file:
+                with open(filename, 'w') as f:
+                    f.write(f"{data}\n")
+            else:
+                with open(filename, 'a') as f:
+                    f.write(f"{data}\n")
 
-    def stop_all(self, scf):
+    def stop_scf(self, scf):
         # Function to stop all crazyflies
         scf.cf.commander.send_stop_setpoint()
         # Hand control over to the high level commander to avoid timeout and locking of the Crazyflie
@@ -130,7 +121,9 @@ class RefuelingOrchestrator():
                 time.sleep(0.1)
         except KeyboardInterrupt:
             logger.info(f"Keyboard interrupt detected for {self.URI['tb']}.")
+            stop_event.set()  # Signal all threads to stop
         finally:
+            self.stop_scf(scf)
             self.tb_translation_log_conf.stop()
             self.tb_orientation_log_conf.stop()
             logger.info(f"Stopped logging for {self.URI['tb']}.")
@@ -149,12 +142,15 @@ class RefuelingOrchestrator():
         print("CF initialization complete!")
 
         try:
-            while time.time() < self.end_time:
+            while time.time() < self.end_time or not stop_event.is_set():
                 match self.mode_select:
                     case 1:
                         self.move_drone(scf,0, 0, 0.5, 0)
-                        timestamp = time.strftime("%H:%M:%S", time.localtime())
-                        #self.write_to_event_log(f"{timestamp},Phase 1: Dwell")
+                        if self.new_state:
+                            self.new_state = False
+                            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                            data = [timestamp] + ['Phase 1: Dwell']  # Fill in the data
+                            self.write_to_pos_log('cf_pos_log.txt', data)
 
                     case 2:
                         # update the cf_reference to be the position of the tb plus tether length
@@ -163,39 +159,28 @@ class RefuelingOrchestrator():
                         y_ref = self.cf_reference_pos[1]
                         z_ref = self.cf_reference_pos[2]
                         self.move_drone(scf, x_ref, y_ref, z_ref, 0)
-                        #timestamp = time.strftime("%H:%M:%S", time.localtime())
-                        #self.write_to_event_log(f"{timestamp},Phase 2: Tether")
+                        if self.new_state:
+                            self.new_state = False
+                            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                            data = [timestamp] + ['Phase 2: Rendesvous & Follow']  # Fill in the data
+                            self.write_to_pos_log('cf_pos_log.txt', data)
 
                     case 3:
                         self.move_drone(scf, -0.25, 0, 0.5, 0)
-                        #timestamp = time.strftime("%H:%M:%S", time.localtime())
-                        #self.write_to_event_log(f"{timestamp},Phase 3: Detach")
+                        if self.new_state:
+                            self.new_state = False
+                            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                            data = [timestamp] + ['Phase 3: Detach']  # Fill in the data
+                            self.write_to_pos_log('cf_pos_log.txt', data)
 
                     case 4:
                         self.move_drone(scf, 0, 0, 0.1, 0)
-                        #timestamp = time.strftime("%H:%M:%S", time.localtime())
-                        #self.write_to_event_log(f"{timestamp} - Phase 4: Land")
-                        time.sleep(3)
-                        break
-
-                    case 'forward':
-                        print("Moving forward")
-                        x, y, z = self.cf_state[0:3]
-                        print(f"Current position: {x}, {y}, {z}")
-                        self.move_drone(scf, x + 0.25, y, z, 0)
-                        print(f"New position: {x + 0.25}, {y}, {z}")
-
-                    case 'backward':
-                        x, y, z = self.cf_state[0:3]
-                        self.move_drone(scf, x - 0.25, y, z, 0)
-
-                    case 'left':
-                        x, y, z = self.cf_state[0:3]
-                        self.move_drone( scf, x, y - 0.25, z, 0)
-
-                    case 'right':
-                        x, y, z = self.cf_state[0:3]
-                        self.move_drone(scf, x, y + 0.25, z, 0)
+                        if self.new_state:
+                            self.new_state = False
+                            timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                            data = [timestamp] + ['Phase 4: Landing']  # Fill in the data
+                            self.write_to_pos_log('cf_pos_log.txt', data)
+                            print("Press 'q' to quit")
 
                     case 'q':
                         print("Quitting")
@@ -208,23 +193,13 @@ class RefuelingOrchestrator():
                 timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
                 data = [timestamp] + self.cf_state.tolist() # Fill in the data
                 self.write_to_pos_log('cf_pos_log.txt', data)
-
-                # Wait for a bit, rate update
-                time.sleep(0.05)
-
-
-            # When out of the while loop, attempt to stop the Crazyflie
-            scf.cf.commander.send_stop_setpoint()
-            scf.cf.commander.send_notify_setpoint_stop()
-            time.sleep(0.1)
+                time.sleep(1/self.log_rate) # Wait for a bit, rate update
 
         except KeyboardInterrupt:
             logger.info(f"Keyboard interrupt detected for {self.URI['cf']}.")
-            scf.cf.commander.send_stop_setpoint()
-            scf.cf.commander.send_notify_setpoint_stop()
-            time.sleep(0.1)
-
+            stop_event.set()  # Signal all threads to stop
         finally:
+            self.stop_scf(scf)
             self.cf_translation_log_conf.stop()
             self.cf_orientation_log_conf.stop()
             logger.info(f"Stopped logging for {self.URI['cf']}")
@@ -264,32 +239,6 @@ class RefuelingOrchestrator():
                 case '4':
                     self.mode_select = 4
                     print(f"\n\n Switching into Phase 4: Landing")
-                case 'r':
-                    self.mode_select = 'record'
-                    self.log_cf_pose = True
-                    print(f"\n\n Recording CF position")
-                case 's':
-                    self.mode_select = 'stop'
-                    self.log_cf_pose = False
-                    print(f"\n\n Stopped recording CF position")
-                case 'up':
-                    self.mode_select = 'forward'
-                    print(f"\n\n Moving forward, step 0.25m")
-                case 'down':
-                    self.mode_select = 'backward'
-                    print(f"\n\n Moving backward, step 0.25m")
-                case 'left':
-                    self.mode_select = 'left'
-                    print(f"\n\n Moving left, step 0.25m")
-                case 'right':
-                    self.mode_select = 'right'
-                    print(f"\n\n Moving right, step 0.25m")
-                case 'o':
-                    self.rotate_mode = True
-                    print(f"\n\n Rotating mode enabled")
-                case 't':
-                    self.rotate_mode = False
-                    print(f"\n\n Rotating mode disabled")
                 case 'q':
                     print("Quit mode selected")
                     self.mode_select = 'q'
@@ -358,7 +307,12 @@ if __name__ == '__main__':
     URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E702')
 
     # Initialize the orchestrator
-    refueling_orchestrator = RefuelingOrchestrator(URI,
-                                                   max_scenario_time=120,
-                                                   simulate=False,
-                                                   verbose=False)
+    refueling_orchestrator = RefuelingOrchestrator(
+                                 URI,
+                                 max_scenario_time=120, # seconds
+                                 tether_length=0.2, # meters
+                                 log_pos=True, # Set to True to log position and reference data
+                                 log_rate=20, # Hz, rate to log position data
+                                 simulate=False, # Set to True to simulate without connecting to Crazyflie
+                                 verbose=False, # Set to True to print more information
+                                 )
