@@ -1,8 +1,10 @@
 #ifndef _BALANCED_h
 #define _BALANCED_h
 
-#include "MsTimer2.h"
+// #include "MsTimer2.h"
+#include <Arduino.h>
 #include "KalmanFilter.h"
+#include "SparkFunLSM6DS3.h"
 
 enum Direction
 {
@@ -13,10 +15,34 @@ enum Direction
   STOP,
 };
 
+class Mpu6050
+{
+  public:
+        void init();
+        void DataProcessing(); // readIMU
+        void PrintData();
+        // void calibrateIMU(unsigned long delayMillis, unsigned long calibrationMillis);
+        // bool readIMU();
+        // void doCalculations();
+        Mpu6050();
+
+  public:
+        float ax, ay, az, gx, gy, gz;
+        float dt, Q_angle, Q_gyro, R_angle, C_0, K1;
+        float gyroDriftX, gyroDriftY, gyroDriftZ;
+        float gyroRoll, gyroPitch, gyroYaw;
+        float gyroCorrectedRoll, gyroCorrectedPitch, gyroCorrectedYaw;
+        float accRoll, accPitch, accYaw;
+        float complementaryRoll, complementaryPitch, complementaryYaw;
+        unsigned long lastTime;
+        unsigned long lastInterval;
+        // LSM6DS3 myIMU; // SparkFun
+};
+
 class Balanced
 {
   public:
-          Balanced();
+          Balanced(Mpu6050& mpu);
           void Get_EncoderSpeed();
           void PD_VerticalRing();
           void PI_SpeedRing();
@@ -54,45 +80,26 @@ class Balanced
           double rotation_control_output;
           int setting_turn_speed;
           int setting_car_speed;
+          float delta_t; 
+          float prev_angle;
           
    private:
-   #define ANGLE_MIN -27
-   #define ANGLE_MAX 27
+          Mpu6050& mpu6050; // Add this line
+   #define ANGLE_MIN -32 // -27
+   #define ANGLE_MAX 32 // 27
    #define EXCESSIVE_ANGLE_TILT (kalmanfilter.angle < ANGLE_MIN || ANGLE_MAX < kalmanfilter.angle)
-   #define PICKED_UP (kalmanfilter.angle6 < -10 || 22 < kalmanfilter.angle6)
+  //  #define PICKED_UP (kalmanfilter.angle6 < -10 || 22 < kalmanfilter.angle6)
+   #define PICKED_UP (kalmanfilter.angle6 < -25 || 25 < kalmanfilter.angle6)
 };
 
-class Timer2
-{
-  public:
-          void init(int time);
-          static void interrupt();
-  private:       
-          #define TIMER 5
-};
-
-
-class Mpu6050
-{
-  public:
-          void init();
-          void DataProcessing();
-          Mpu6050();
-
-  public:
-         int ax, ay, az, gx, gy, gz;
-         float dt, Q_angle, Q_gyro, R_angle, C_0, K1;
-};
-
-
-
-
-
-
-
-
-
-
+// class Timer2
+// {
+//   public:
+//           void init(int time);
+//           static void interrupt();
+//   private:       
+//           #define TIMER 5
+// };
 
 
 #endif

@@ -71,7 +71,7 @@ class RefuelingOrchestrator():
             self.end_time = self.start_time + self.max_scenario_time
             
             swarm.parallel_safe(self.run, args_dict = control_args)
-            s
+
             # try:
             #     # self.run_cf(scfs[URI['cf']])
             #     # self.run_tb(scfs[URI['tb']])
