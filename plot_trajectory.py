@@ -29,6 +29,9 @@ def load_trajectory(filename):
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(subset=["x", "y", "z"])
 
+    # Drop any values of xyz that are all zero
+    df = df.loc[~(df[["x", "y", "z"]] == 0).all(axis=1)]
+
     return df
 
 
@@ -57,7 +60,7 @@ def plot_trajectories(crazyflie_file, tumbller_file):
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
     ax.set_zlim([0, 1])
-    ax.set_title("3D Trajectories of Crazyflie and Tumbller")
+    ax.set_title("3D Trajectories of Crazyflie and Linear Tumbller")
 
     # Add legend
     plt.legend()
@@ -66,8 +69,8 @@ def plot_trajectories(crazyflie_file, tumbller_file):
 
 if __name__ == "__main__":
     # File paths
-    crazyflie_file = "cf_pos_log.txt"
-    tumbller_file = "tb_pos_log.txt"
+    crazyflie_file = "linear_trajectory/cf_pos_log.txt"
+    tumbller_file = "linear_trajectory/tb_pos_log.txt"
 
     # Plot the trajectories
     plot_trajectories(crazyflie_file, tumbller_file)

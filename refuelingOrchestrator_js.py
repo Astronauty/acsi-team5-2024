@@ -173,16 +173,15 @@ class RefuelingOrchestrator():
                 if self.verbose:
                     print(f"TB State: {self.tb_state[0:3]}")
 
-                #print("yaw (deg): ", self.tb_state[8])
-                platform_pos = self.T_platform_from_tb(self.tb_state[0:3], self.tb_state[6:9])
-                print(f"Platform State: {platform_pos}")
+                #platform_pos = self.T_platform_from_tb(self.tb_state[0:3], self.tb_state[6:9])
+                #print(f"Platform State: {platform_pos}")
 
                 # Get the timestamp, including milliseconds
-                #timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
-                #data = [timestamp] + self.tb_state.tolist() # Fill in the data
-                #self.write_to_pos_log('tb_pos_log.txt', data)
+                timestamp = datetime.datetime.now().strftime("%H:%M:%S.%f")
+                data = [timestamp] + self.tb_state.tolist() # Fill in the data
+                self.write_to_pos_log('tb_pos_log.txt', data)
 
-                #time.sleep(1/self.log_rate) # Wait for a bit, rate update
+                time.sleep(1/self.log_rate) # Wait for a bit, rate update
 
         except KeyboardInterrupt:
             logger.info(f"Keyboard interrupt detected for {self.URI['tb']}.")
@@ -360,8 +359,7 @@ if __name__ == '__main__':
     URI['cf'] = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
     # Initialize the orchestrator
-    refueling_orchestrator = RefuelingOrchestrator(
-                                 URI,
+    refueling_orchestrator = RefuelingOrchestrator(URI,
                                  max_scenario_time=120, # seconds
                                  tether_length=0.30, # meters
                                  log_pos=True, # Set to True to log position and reference data
