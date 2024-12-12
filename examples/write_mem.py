@@ -2,6 +2,7 @@
 import logging
 from threading import Event
 import ast  # To parse string representations of Python objects
+import argparse
 
 import cflib.crtp  # noqa
 from cflib.crazyflie import Crazyflie
@@ -91,8 +92,15 @@ class WriteMem:
 
 
 if __name__ == '__main__':
+
+    args = argparse.ArgumentParser()
+    args.add_argument("--id", type=int, default=1, help="Crazyflie ID")
+    args.add_argument("--file ", type=str, default="lighthouse_memory.txt", help="File path to read memory data from")
+    args = args.parse_args()
+
     # URI to the Crazyflie to connect to
-    uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
+    radio = 'radio://0/20/2M/E7E7E7E7{:02d}'.format(args.id)
+    uri = uri_helper.uri_from_env(default=radio)
 
     # Initialize the low-level drivers
     cflib.crtp.init_drivers()
@@ -100,6 +108,15 @@ if __name__ == '__main__':
     # Parse the memory data from the file
     print("Parsing memory data from lighthouse_memory.txt")
     geo_dict, calib_dict = parse_file('lighthouse_memory.txt')
+
+    # Output the parsed dictionaries
+    print("Parsed geo_dict:")
+    for key, value in geo_dict.items():
+        print(f"Base Station {key}: {value.origin}, {value.rotation_matrix}, {value.valid}")
+
+    print("\nParsed calib_dict:")
+    for key, value in calib_dict.items():
+        print(f"Base Station {key}: {value.uid}, {value.sweeps[0].phase}, {value.valid}")
 
     # Write memory data to the new Crazyflie
     WriteMem(uri, geo_dict, calib_dict)

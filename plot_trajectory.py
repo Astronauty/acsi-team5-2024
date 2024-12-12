@@ -1,8 +1,13 @@
 import ast
 import pandas as pd
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
-def plot_trajectory(filename):
+
+def load_trajectory(filename):
+    """
+    Load trajectory data from a file and return a DataFrame with x, y, z positions.
+    """
     data = []
     with open(filename, "r") as file:
         for line in file:
@@ -19,28 +24,53 @@ def plot_trajectory(filename):
     columns = ["time", "x", "y", "z", "vx", "vy", "vz", "roll", "pitch", "yaw", "roll_rate", "pitch_rate", "yaw_rate"]
     df = pd.DataFrame(data, columns=columns)
 
-    # Convert columns to numeric if possible
+    # Convert x, y, z to numeric and drop rows with NaN
     for col in ["x", "y", "z"]:
         df[col] = pd.to_numeric(df[col], errors='coerce')
-
-    # Drop rows with NaN values in position data
     df = df.dropna(subset=["x", "y", "z"])
 
-    # Plot the 3D trajectory
+    # Drop any values of xyz that are all zero
+    df = df.loc[~(df[["x", "y", "z"]] == 0).all(axis=1)]
+
+    return df
+
+
+def plot_trajectories(crazyflie_file, tumbller_file):
+    """
+    Plot the trajectories of the Crazyflie and Tumbller in a 3D space.
+    """
+    # Load the trajectory data
+    cf_df = load_trajectory(crazyflie_file)
+    tb_df = load_trajectory(tumbller_file)
+
+    # Plot the trajectories
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    ax.plot(df["x"], df["y"], df["z"], label="Trajectory")
+
+    # Plot Crazyflie trajectory (red)
+    ax.plot(cf_df["x"], cf_df["y"], cf_df["z"], color="red", label="Crazyflie")
+
+    # Plot Tumbller trajectory (blue)
+    ax.plot(tb_df["x"], tb_df["y"], tb_df["z"], color="blue", label="Tumbller")
+
+    # Set labels and limits
     ax.set_xlabel("X Position (m)")
     ax.set_ylabel("Y Position (m)")
     ax.set_zlabel("Z Position (m)")
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
     ax.set_zlim([0, 1])
-    ax.set_title("3D Trajectory of the System")
+    ax.set_title("3D Trajectories of Crazyflie and Linear Tumbller")
+
+    # Add legend
     plt.legend()
     plt.show()
 
-if __name__ == "__main__":
 
-    file_name = "cf_pos_log.txt"
-    plot_trajectory(file_name)
+if __name__ == "__main__":
+    # File paths
+    crazyflie_file = "linear_trajectory/cf_pos_log.txt"
+    tumbller_file = "linear_trajectory/tb_pos_log.txt"
+
+    # Plot the trajectories
+    plot_trajectories(crazyflie_file, tumbller_file)

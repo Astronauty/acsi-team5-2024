@@ -26,7 +26,7 @@ calibration memory from a Crazyflie
 import time
 import logging
 from threading import Event
-
+import argparse
 import cflib.crtp  # noqa
 from cflib.crazyflie import Crazyflie
 from cflib.crazyflie.mem import LighthouseMemHelper
@@ -46,7 +46,6 @@ class ReadMem:
 
             helper.read_all_geos(self._geo_read_ready)
             self._event.wait()
-            time.sleep(1)
 
             self._event.clear()
 
@@ -78,14 +77,21 @@ class ReadMem:
 
 
 if __name__ == '__main__':
+
+    args = argparse.ArgumentParser()
+    args.add_argument('--id', type=int, default=1, help='Crazyflie ID')
+    args.add_argument('--output_file', type=str, default='lighthouse_memory.txt', help='Output file')
+    args = args.parse_args()
+
     # URI to the Crazyflie to connect to
-    uri = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
+    radio = 'radio://0/20/2M/E7E7E7E7{:02d}'.format(args.id)
+    uri = uri_helper.uri_from_env(default=radio)
 
     # Initialize the low-level drivers
     cflib.crtp.init_drivers()
 
     # Specify the output file
-    output_file = 'lighthouse_memory.txt'
+    output_file = args.output_file
 
     # Read memory and save to file
     print("Reading ligthouse memory")
