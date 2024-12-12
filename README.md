@@ -1,3 +1,14 @@
+# Contributions
+
+## Daniel
+### TinyMPC
+    acsi-team5-2024/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c
+### OSQP
+### Refueling Orchestrator
+
+## Tianqi
+## Jonathan S.
+## Jonathan C.
 
 # Crazyflie2.1 Setup 
 
