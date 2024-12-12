@@ -2,7 +2,7 @@
 
 ## Daniel
 ### TinyMPC
-    [a relative link](acsi-team5-2024/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c)
+    [a relative link](/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c)
 ### OSQP
 ### Refueling Orchestrator
 
