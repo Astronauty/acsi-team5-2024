@@ -313,7 +313,7 @@ if __name__ == '__main__':
         #    sys.exit(1)
 
         #logconf.start()
-        
+        #temp
         start = time.time()
         
         while(time.time() < start + 2.0):
