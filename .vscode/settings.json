@@ -5,6 +5,7 @@
         "string": "c",
         "*.inc": "c",
         "controller_pid.h": "c",
-        "tinympc.h": "c"
+        "tinympc.h": "c",
+        "stabilizer_types.h": "c"
     }
 }

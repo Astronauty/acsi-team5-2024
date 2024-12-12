@@ -40,7 +40,7 @@ from cflib.utils import uri_helper
 
 URI = uri_helper.uri_from_env(default='radio://0/20/2M/E7E7E7E701')
 
-DEFAULT_HEIGHT = 1.5
+DEFAULT_HEIGHT = 0.5
 BOX_LIMIT = 0.5
 
 deck_attached_event = Event()
@@ -193,7 +193,9 @@ def take_off_simple(scf):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
         time.sleep(3)
         mc.stop()
-
+        
+def take_off_mpc(scf):
+    scf.cf.commander.send_position_setpoint(0, 0, 0.25, 0)
 
 def take_off_and_hover(scf, hover_time=10):
     with MotionCommander(scf, default_height=DEFAULT_HEIGHT) as mc:
@@ -299,17 +301,25 @@ if __name__ == '__main__':
         #scf.cf.param.add_update_callback(group='deck', name='bcFlow2',
         #                                 cb=param_deck_flow)
         time.sleep(1)
+        scf.cf.param.set_value('stabilizer.controller', 6)
+        
 
         logconf = init_pos_log(scf)
 
-        set_initial_position(scf, 1, 0, 0, 0)
-        reset_estimator(scf)
+        # set_initial_position(scf, 1, 0, 0, 0)
+        # reset_estimator(scf)
         #if not deck_attached_event.wait(timeout=5):
         #    print('No flow deck detected!')
         #    sys.exit(1)
 
         #logconf.start()
-        take_off_simple(scf)
+        
+        start = time.time()
+        
+        while(time.time() < start + 2.0):
+            take_off_mpc(scf)
+        
+        
         #hover_with_pid(scf, hover_time=10, reference_point=(0, 0, 1.5))
         # run_sequence(scf, hover_time=10)
         # move_linear_simple(scf)
