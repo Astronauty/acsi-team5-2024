@@ -4,7 +4,7 @@
 ### TinyMPC
 [a relative link](/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c)
 
-[TinyMPC Implementation](https://github.com/Astronauty/acsi-team5-2024/blob/main/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c)
+[TinyMPC] : (https://github.com/Astronauty/acsi-team5-2024/blob/main/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c)
 A barebones TinyMPC controller was created by instantiating another controller directly in the crazyflie-firmware (as opposed to implementing out-of-tree, since we had issues with the compiler toolchain recognizing the out-of-tree builds). Under the existing controller framework, this makes it drop-in compatible with reference commands sent via the Python Commander API.
 
 ### OSQP
