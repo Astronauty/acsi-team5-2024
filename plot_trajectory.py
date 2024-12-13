@@ -1,76 +1,110 @@
 import ast
 import pandas as pd
+import re
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-
 
 def load_trajectory(filename):
     """
-    Load trajectory data from a file and return a DataFrame with x, y, z positions.
+    Loads a trajectory file and associates each data sample with the corresponding phase number.
+    When a new phase is detected, all subsequent samples are assigned to that phase.
     """
     data = []
+    current_phase = 0  # Default phase for data without an assigned phase
+
     with open(filename, "r") as file:
         for line in file:
-            # Skip lines that don't represent data points
-            if not line.strip().startswith("["):
-                continue
-            try:
-                data_point = ast.literal_eval(line.strip())
-                data.append(data_point)
-            except (ValueError, SyntaxError):
-                continue
+            line = line.strip()
 
-    # Create a DataFrame
-    columns = ["time", "x", "y", "z", "vx", "vy", "vz", "roll", "pitch", "yaw", "roll_rate", "pitch_rate", "yaw_rate"]
-    df = pd.DataFrame(data, columns=columns)
+            # Check if the line indicates a phase and extract the first number after "Phase"
+            if "Phase" in line:
+                match = re.search(r"Phase\s+(\d+)", line)  # Look for "Phase <number>"
+                if match:
+                    current_phase = int(match.group(1))  # Extract the first number after "Phase"
+                    print(f"Detected new phase: {current_phase}")
+                continue  # Skip this line
 
-    # Convert x, y, z to numeric and drop rows with NaN
-    for col in ["x", "y", "z"]:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    df = df.dropna(subset=["x", "y", "z"])
+            # Parse data lines
+            if line.startswith("[") and "]" in line:
+                try:
+                    data_point = ast.literal_eval(line)
+                    if len(data_point) == 13:  # Ensure it has the correct number of columns
+                        data_point.append(current_phase)  # Append the current phase number to the row
+                        data.append(data_point)
+                    else:
+                        print(f"Skipping row with unexpected column count: {data_point}")
+                except (ValueError, SyntaxError):
+                    print(f"Skipping malformed row: {line}")
+            else:
+                print(f"Skipping non-data row: {line}")
 
-    # Drop any values of xyz that are all zero
-    df = df.loc[~(df[["x", "y", "z"]] == 0).all(axis=1)]
+    # Define column names for the DataFrame, including the new 'phase' column
+    columns = [
+        "time", "x", "y", "z", "vx", "vy", "vz", "roll", "pitch", "yaw",
+        "roll_rate", "pitch_rate", "yaw_rate", "phase"
+    ]
 
-    return df
+    # Create DataFrame
+    if data:
+        return pd.DataFrame(data, columns=columns)
+    else:
+        print("No valid data found in the file.")
+        return pd.DataFrame()  # Return an empty DataFrame if no valid data is found
 
-
-def plot_trajectories(crazyflie_file, tumbller_file):
+def plot_trajectories(crazyflie_file, tumbller_file, phases):
     """
-    Plot the trajectories of the Crazyflie and Tumbller in a 3D space.
+    Plot the trajectories of the Crazyflie and Tumbller for specified phases in a 3D space.
     """
-    # Load the trajectory data
-    cf_df = load_trajectory(crazyflie_file)
-    tb_df = load_trajectory(tumbller_file)
+    try:
+        # Load trajectory data
+        cf_df = load_trajectory(crazyflie_file)
+        tb_df = load_trajectory(tumbller_file)
+    except Exception as e:
+        print(f"Error loading trajectory files: {e}")
+        return
 
-    # Plot the trajectories
+    # Filter the data so include only data from Phase 2 and Phase 3
+    cf_df = cf_df[cf_df["phase"].isin(phases)]
+    tb_df = tb_df[tb_df["phase"].isin(phases)]
+
+    # remove any rows with NaN or all zeros
+    cf_df = cf_df.dropna(subset=["x", "y", "z"])
+    tb_df = tb_df.dropna(subset=["x", "y", "z"])
+    cf_df = cf_df.loc[~(cf_df[["x", "y", "z"]] == 0).all(axis=1)]
+    tb_df = tb_df.loc[~(tb_df[["x", "y", "z"]] == 0).all(axis=1)]
+
+
+    # Convert DataFrame columns to NumPy arrays for plotting
+    cf_x, cf_y, cf_z = cf_df["x"].to_numpy(), cf_df["y"].to_numpy(), cf_df["z"].to_numpy()
+    tb_x, tb_y, tb_z = tb_df["x"].to_numpy(), tb_df["y"].to_numpy(), tb_df["z"].to_numpy()
+
+    # Initialize a 3D plot
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    # Plot Crazyflie trajectory (red)
-    ax.plot(cf_df["x"], cf_df["y"], cf_df["z"], color="red", label="Crazyflie")
+    # Plot Crazyflie trajectory
+    ax.plot(cf_x, cf_y, cf_z, color="red", label="Crazyflie")
 
-    # Plot Tumbller trajectory (blue)
-    ax.plot(tb_df["x"], tb_df["y"], tb_df["z"], color="blue", label="Tumbller")
+    # Plot Tumbller trajectory
+    ax.plot(tb_x, tb_y, tb_z, color="blue", label="Tumbller")
 
-    # Set labels and limits
+    # Set plot labels, limits, and title
     ax.set_xlabel("X Position (m)")
     ax.set_ylabel("Y Position (m)")
     ax.set_zlabel("Z Position (m)")
-    ax.set_xlim([-1, 1])
-    ax.set_ylim([-1, 1])
-    ax.set_zlim([0, 1])
-    ax.set_title("3D Trajectories of Crazyflie and Linear Tumbller")
+    ax.set_title("3D Trajectories of Crazyflie and Tumbller (Phase 2 and 3)")
 
-    # Add legend
-    plt.legend()
+    # Display legend and plot
+    ax.legend()
     plt.show()
 
 
 if __name__ == "__main__":
-    # File paths
-    crazyflie_file = "linear_trajectory/cf_pos_log.txt"
-    tumbller_file = "linear_trajectory/tb_pos_log.txt"
+    # File paths for Crazyflie and Tumbller data
+    crazyflie_file = "circular_trajectory/cf_pos_log.txt"
+    tumbller_file = "circular_trajectory/tb_pos_log.txt"
+
+    # Phases to plot (Phase 2 and Phase 3)
+    phases_to_plot = [2, 3]
 
     # Plot the trajectories
-    plot_trajectories(crazyflie_file, tumbller_file)
+    plot_trajectories(crazyflie_file, tumbller_file, phases_to_plot)
