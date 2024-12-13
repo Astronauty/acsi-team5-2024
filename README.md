@@ -3,6 +3,7 @@
 ## Daniel
 ### TinyMPC
     [a relative link](/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c)
+    [TinyMPC Implementation](https://github.com/Astronauty/acsi-team5-2024/blob/main/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c)
 ### OSQP
 ### Refueling Orchestrator
 
