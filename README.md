@@ -6,16 +6,16 @@
 [TinyMPC](https://github.com/Astronauty/acsi-team5-2024/blob/main/_thirdparty/crazyflie-firmware/src/modules/src/controller/controller_mpc.c): 
 A barebones TinyMPC controller was created by instantiating another controller directly in the crazyflie-firmware (as opposed to implementing out-of-tree, since we had issues with the compiler toolchain recognizing the out-of-tree builds). Under the existing controller framework, this makes it drop-in compatible with reference commands sent via the Python Commander API.
 
-[TinyMPC CodeGen](https://github.com/Astronauty/acsi-team5-2024/blob/main/tinympc_codegen_quadrotor.py)
+[TinyMPC CodeGen](https://github.com/Astronauty/acsi-team5-2024/blob/main/tinympc_codegen_quadrotor.py):
 CodeGen for TinyMPC.
 
-[OSQP](https://github.com/Astronauty/acsi-team5-2024/blob/main/osqp_hover.py)
+[OSQP](https://github.com/Astronauty/acsi-team5-2024/blob/main/osqp_hover.py):
 Solution to LQR tracking with primal constraints using OSQP.
 
-[Refueling Orchestrator](https://github.com/Astronauty/acsi-team5-2024/blob/main/refueling_orchestrator.py)
+[Refueling Orchestrator](https://github.com/Astronauty/acsi-team5-2024/blob/main/refueling_orchestrator.py):
 High-level interface using the commander class for the refueling problem. Contains a user-triggered state machine for changing the reference passed to the low level controller relative to the Tumbller.
 
-[Tumbller Velocity Integrator](https://github.com/Astronauty/acsi-team5-2024/blob/main/tumbller_state_predictor.py)
+[Tumbller Velocity Integrator](https://github.com/Astronauty/acsi-team5-2024/blob/main/tumbller_state_predictor.py):
 Simple integrator to predict future position of Tumbller based on linear interpolation of current velocity.
 
 ## Tianqi
