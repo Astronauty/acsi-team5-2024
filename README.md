@@ -22,7 +22,31 @@ Simple integrator to predict future position of Tumbller based on linear interpo
 ### Webot
 The system's simulation environment was built in Webot for both Tumbller and Crazyfile. The controller for TUmbller and Crazyfile, which are written in Python, can be found in the ACSI_simulation -- Controller folder. Webot world can be seen and modified in the ACSI_simulation -- Worlds folder.
 ### Hardware
+
 ## Jonathan S.
+[Refueling Orchestrator](https://github.com/Astronauty/acsi-team5-2024/blob/main/refueling_orchestrator_js.py):
+Code used in demonstration. High-level interface using the commander class for the refueling problem. Contains a user-triggered state machine for changing the reference passed to the low level controller relative to the Tumbller.
+
+[Base Station Setup](https://github.com/Astronauty/acsi-team5-2024/blob/main/multi_bs_geometry_estimation.py):
+Helper script based on the Crazyflie Client GUI to quickly calibrate base stations and write to Crazyflie.
+
+[Read Crazyflie Calibration](https://github.com/Astronauty/acsi-team5-2024/blob/main/examples/save_mem.py):
+Obtains Crazyflie calibration data as well as lighthouse matrix coefficients, writes to local file. Crazyflie id passed as argument.
+
+[Write Crazyflie Calibration](https://github.com/Astronauty/acsi-team5-2024/blob/main/examples/write_mem.py):
+Loads local crazyflie calibration parameters and updates selected Crazyflie. Crazyflie id passed as argument.
+
+[Plot Reference/Meaured Trajectories](https://github.com/Astronauty/acsi-team5-2024/blob/main/plot_trajectory.py):
+Log and plot the reference and measured trajectories of the Crazyflie during the demo. Parse logging data between specified phases.
+
+[Plot Error Trajectory](https://github.com/Astronauty/acsi-team5-2024/blob/main/plot_ref_error.py):
+Plot the differece between the reference trajectory and actual measured trajectory from the Crazyflie.
+
+[Log Tests](https://github.com/Astronauty/acsi-team5-2024/blob/main/examples/log_multiple_test.py):
+Logging test with multiple crazyflies and full-state parameters
+
+[README](https://github.com/Astronauty/acsi-team5-2024/blob/main/README.md): Setup instructions for naive installation on new OS with virtual environment for Windows, WSL2, and Ubuntu.
+
 ## Jonathan C.
 
 # Crazyflie2.1 Setup 
